@@ -22,6 +22,11 @@ export function subscribeToCollection(name, onData, onError) {
   );
 }
 
+export function classNameFromStudentNumber(studentNumber) {
+  const match = String(studentNumber || "").match(/^([1-3])(0[1-9])\d{2}$/);
+  return match ? `${Number(match[1])}학년 ${Number(match[2])}반` : "";
+}
+
 export function subscribeStudySettings(onData, onError) {
   return onSnapshot(
     doc(db, "settings", "studyRoom"),
@@ -289,7 +294,10 @@ export async function publishRankingProfile(id, profile) {
     doc(db, "publicRankings", id),
     {
       name: profile.name || "이름 없음",
-      className: profile.className || "학급 미지정",
+      className:
+        classNameFromStudentNumber(profile.studentNumber) ||
+        profile.className ||
+        "학급 미지정",
       points: profile.points || 0,
       streak: profile.streak || 0,
       updatedAt: serverTimestamp(),
@@ -305,7 +313,10 @@ export async function publishRankingProfiles(students) {
       doc(db, "publicRankings", student.id),
       {
         name: student.name || "이름 없음",
-        className: student.className || "학급 미지정",
+        className:
+          classNameFromStudentNumber(student.studentNumber) ||
+          student.className ||
+          "학급 미지정",
         points: student.points || 0,
         streak: student.streak || 0,
         updatedAt: serverTimestamp(),

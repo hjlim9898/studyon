@@ -39,6 +39,7 @@ import {
   cancelReservationPeriod,
   cancelStudyReservation,
   changeReservationPeriodSeat,
+  classNameFromStudentNumber,
   createStudyReservation,
   publishRankingProfile,
   publishRankingProfiles,
@@ -342,23 +343,30 @@ function LoginPage() {
     setBusy(true);
     try {
       if (mode === "signup") {
+        const className = classNameFromStudentNumber(studentNumber);
+        if (!className) {
+          setError("학번은 10101 형식으로 입력해 주세요. 학년은 1~3, 반은 01~09입니다.");
+          return;
+        }
         const result = await createUserWithEmailAndPassword(
           auth,
           email,
           password,
         );
         await updateProfile(result.user, { displayName: name });
-        await setDoc(doc(db, "users", result.user.uid), {
+        const studentProfile = {
           uid: result.user.uid,
           name,
           studentNumber,
-          className: "",
+          className,
           role: "student",
           points: 0,
           streak: 0,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-        });
+        };
+        await setDoc(doc(db, "users", result.user.uid), studentProfile);
+        await publishRankingProfile(result.user.uid, studentProfile);
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
@@ -448,9 +456,14 @@ function LoginPage() {
                 학번
                 <input
                   required
+                  inputMode="numeric"
+                  pattern="[1-3]0[1-9][0-9]{2}"
+                  maxLength="5"
                   value={studentNumber}
-                  onChange={(e) => setStudentNumber(e.target.value)}
-                  placeholder="20101"
+                  onChange={(e) =>
+                    setStudentNumber(e.target.value.replace(/\D/g, "").slice(0, 5))
+                  }
+                  placeholder="10101"
                 />
               </label>
             </div>
@@ -1952,7 +1965,10 @@ function ParticipationLeaderboard({ students, loading }) {
   ];
   const classLeaders = Object.values(
     students.reduce((classes, student) => {
-      const className = student.className || "학급 미지정";
+      const className =
+        classNameFromStudentNumber(student.studentNumber) ||
+        student.className ||
+        "학급 미지정";
       classes[className] ||= { name: className, points: 0, students: 0 };
       classes[className].points += student.points || 0;
       classes[className].students += 1;
@@ -1964,7 +1980,7 @@ function ParticipationLeaderboard({ students, loading }) {
       <div className="section-head">
         <div>
           <span className="eyebrow">TOP PARTICIPATION</span>
-          <h2>자율학습 참여 우수 학생</h2>
+          <h2>Prize</h2>
           <p>누적 포인트 순위와 실제 참여 기록을 함께 보여줍니다.</p>
         </div>
         <button
@@ -2833,11 +2849,27 @@ function MyPage({ user, profile, setProfile, notify, onLogout }) {
   const [saving, setSaving] = useState(false);
   const save = async (event) => {
     event.preventDefault();
+    const derivedClassName = classNameFromStudentNumber(form.studentNumber);
+    if (profile?.role !== "teacher" && !derivedClassName) {
+      notify("학번은 10101 형식으로 입력해 주세요. 학년은 1~3, 반은 01~09입니다.");
+      return;
+    }
     setSaving(true);
     try {
-      await updateStudent(user.uid, form);
+      const nextForm =
+        profile?.role === "teacher"
+          ? form
+          : { ...form, className: derivedClassName };
+      await updateStudent(user.uid, nextForm);
+      if (profile?.role !== "teacher") {
+        await publishRankingProfile(user.uid, {
+          ...profile,
+          ...nextForm,
+        });
+      }
       await updateProfile(user, { displayName: form.name });
-      setProfile((current) => ({ ...current, ...form }));
+      setForm(nextForm);
+      setProfile((current) => ({ ...current, ...nextForm }));
       notify("내 정보를 저장했습니다.");
     } catch {
       notify("정보를 저장하지 못했습니다.");
@@ -2894,9 +2926,14 @@ function MyPage({ user, profile, setProfile, notify, onLogout }) {
                 onChange={(e) =>
                   setForm((current) => ({
                     ...current,
-                    studentNumber: e.target.value,
+                    studentNumber: e.target.value.replace(/\D/g, "").slice(0, 5),
+                    className:
+                      classNameFromStudentNumber(e.target.value.replace(/\D/g, "").slice(0, 5)) || "",
                   }))
                 }
+                inputMode="numeric"
+                pattern="[1-3]0[1-9][0-9]{2}"
+                maxLength="5"
               />
             </label>
           )}
@@ -2913,6 +2950,7 @@ function MyPage({ user, profile, setProfile, notify, onLogout }) {
               placeholder={
                 profile?.role === "teacher" ? "예: 2학년부" : "예: 2학년 1반"
               }
+              readOnly={profile?.role !== "teacher"}
             />
           </label>
           <label>
