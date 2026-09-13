@@ -1473,6 +1473,10 @@ td {
 .settings-actions button:disabled {
   opacity: 0.6;
 }
+.primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
 @media (max-width: 900px) {
   .settings-layout {
     grid-template-columns: 1fr;

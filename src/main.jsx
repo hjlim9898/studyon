@@ -643,7 +643,7 @@ function StudentHome({ setPage, checkedIn, toggleCheck, studentName }) {
 function ApplyPage({ notify }) {
   const [day, setDay] = useState(0),
     [slot, setSlot] = useState("2교시 · 17:20 – 18:40"),
-    [seat, setSeat] = useState("A-03"),
+    [seat, setSeat] = useState(""),
     [studySettings, setStudySettings] = useState(null);
   useEffect(
     () =>
@@ -681,7 +681,10 @@ function ApplyPage({ notify }) {
             {days.map((d, i) => (
               <button
                 className={day === i ? "selected" : ""}
-                onClick={() => setDay(i)}
+                onClick={() => {
+                  setDay(i);
+                  setSeat("");
+                }}
                 key={d.date}
               >
                 <span>{d.day}</span>
@@ -699,7 +702,10 @@ function ApplyPage({ notify }) {
               return (
                 <button
                   className={slot === value ? "selected" : ""}
-                  onClick={() => setSlot(value)}
+                  onClick={() => {
+                    setSlot(value);
+                    setSeat("");
+                  }}
                   key={period.id}
                 >
                   <span>
@@ -746,12 +752,16 @@ function ApplyPage({ notify }) {
             {days[day].date}일 ({days[day].day})
           </span>
           <strong>
-            {slot} · {seat} 좌석
+            {slot} · {seat ? `${seat} 좌석` : "좌석을 선택해 주세요"}
           </strong>
         </div>
         <button
           className="primary-button"
-          onClick={() => notify(`${seat} 좌석으로 신청이 완료되었어요!`)}
+          disabled={!seat}
+          onClick={() => {
+            notify(`${seat} 좌석으로 신청이 완료되었어요!`);
+            setSeat("");
+          }}
         >
           이 일정으로 신청하기
         </button>
