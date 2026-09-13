@@ -1477,6 +1477,39 @@ td {
   cursor: not-allowed;
   opacity: 0.48;
 }
+.student-empty {
+  min-height: 285px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.student-empty .empty-illustration {
+  width: 62px;
+  height: 62px;
+  border-radius: 18px;
+  background: #e8f7f0;
+  color: #18a572;
+  display: grid;
+  place-items: center;
+  margin-bottom: 15px;
+}
+.student-empty .empty-illustration svg {
+  width: 28px;
+}
+.student-empty h2 {
+  font-size: 17px;
+  margin: 0 0 7px;
+}
+.student-empty p {
+  font-size: 11px;
+  color: #84938e;
+  margin: 0 0 20px;
+}
+.student-empty .primary-button {
+  margin: 0;
+}
 @media (max-width: 900px) {
   .settings-layout {
     grid-template-columns: 1fr;

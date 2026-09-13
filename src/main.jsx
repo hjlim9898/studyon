@@ -120,7 +120,7 @@ const initialStudents = [
 ];
 const seats = Array.from({ length: 24 }, (_, i) => ({
   id: `${String.fromCharCode(65 + Math.floor(i / 8))}-${String((i % 8) + 1).padStart(2, "0")}`,
-  taken: [1, 4, 7, 9, 13, 18, 22].includes(i),
+  taken: false,
 }));
 
 function Toast({ message, onDone }) {
@@ -1886,6 +1886,150 @@ function OperationsSettings({ notify }) {
   );
 }
 
+function EmptyStudentHome({ setPage, studentName }) {
+  return (
+    <div className="page">
+      <section className="welcome">
+        <div>
+          <span className="eyebrow">STUDYON</span>
+          <h1>
+            {studentName}님, 오늘도 <em>함께 성장해요.</em>
+          </h1>
+          <p>첫 자율학습을 신청하고 나만의 학습 기록을 시작해 보세요.</p>
+        </div>
+        <div className="streak-orb">
+          <Flame />
+          <strong>0</strong>
+          <span>연속 학습</span>
+        </div>
+      </section>
+      <div className="stats-grid">
+        <div className="stat">
+          <span className="icon mint">
+            <Clock3 />
+          </span>
+          <div>
+            <small>이번 달 학습시간</small>
+            <strong>0시간 0분</strong>
+            <span>아직 학습 기록이 없어요</span>
+          </div>
+        </div>
+        <div className="stat">
+          <span className="icon blue">
+            <CalendarDays />
+          </span>
+          <div>
+            <small>이번 달 참여</small>
+            <strong>0회</strong>
+            <span>첫 학습을 신청해 보세요</span>
+          </div>
+        </div>
+        <div className="stat">
+          <span className="icon yellow">
+            <Star />
+          </span>
+          <div>
+            <small>나의 포인트</small>
+            <strong>0 P</strong>
+            <span>출석하고 포인트를 모아보세요</span>
+          </div>
+        </div>
+      </div>
+      <section className="panel student-empty">
+        <span className="empty-illustration">
+          <BookOpen />
+        </span>
+        <h2>예정된 자율학습이 없습니다</h2>
+        <p>날짜와 교시, 좌석을 선택해 첫 자율학습을 신청해 보세요.</p>
+        <button className="primary-button" onClick={() => setPage("apply")}>
+          <CalendarDays /> 자율학습 신청하기
+        </button>
+      </section>
+    </div>
+  );
+}
+
+function EmptyRecordsPage() {
+  return (
+    <div className="page">
+      <div className="title-row">
+        <div>
+          <span className="eyebrow">MY STUDY</span>
+          <h1>학습 기록</h1>
+          <p>참여한 자율학습 기록과 누적 시간을 확인할 수 있습니다.</p>
+        </div>
+      </div>
+      <div className="stats-grid">
+        <div className="stat">
+          <span className="icon mint">
+            <BookOpen />
+          </span>
+          <div>
+            <small>누적 학습시간</small>
+            <strong>0시간 0분</strong>
+            <span>총 0회 참여</span>
+          </div>
+        </div>
+        <div className="stat">
+          <span className="icon blue">
+            <TrendingUp />
+          </span>
+          <div>
+            <small>이번 주</small>
+            <strong>0시간 0분</strong>
+            <span>아직 기록이 없어요</span>
+          </div>
+        </div>
+        <div className="stat">
+          <span className="icon yellow">
+            <Flame />
+          </span>
+          <div>
+            <small>최장 연속 학습</small>
+            <strong>0일</strong>
+            <span>첫 기록을 기다리고 있어요</span>
+          </div>
+        </div>
+      </div>
+      <section className="panel student-empty">
+        <span className="empty-illustration">
+          <Clock3 />
+        </span>
+        <h2>학습 기록이 없습니다</h2>
+        <p>자율학습에 참여하고 입·퇴실을 완료하면 기록이 여기에 쌓입니다.</p>
+      </section>
+    </div>
+  );
+}
+
+function EmptyRewardsPage() {
+  return (
+    <div className="page">
+      <div className="reward-hero">
+        <div>
+          <span className="eyebrow">MY REWARDS</span>
+          <h1>첫 도전부터 시작해 보세요</h1>
+          <p>자율학습에 참여하면 포인트와 배지가 차곡차곡 쌓입니다.</p>
+        </div>
+        <div className="points">
+          <Star />
+          <div>
+            <small>보유 포인트</small>
+            <strong>0 P</strong>
+          </div>
+        </div>
+      </div>
+      <section className="panel student-empty">
+        <span className="empty-illustration">
+          <Trophy />
+        </span>
+        <h2>아직 획득한 배지가 없습니다</h2>
+        <p>첫 자율학습을 완료하면 ‘첫 도전’ 배지를 받을 수 있어요.</p>
+      </section>
+    </div>
+  );
+}
+
 function App() {
   const [user, setUser] = useState(undefined),
     [profile, setProfile] = useState(null),
@@ -1932,26 +2076,17 @@ function App() {
     if (role === "teacher")
       return <TeacherConsole notify={notify} page={page} />;
     if (page === "apply") return <ApplyPage notify={notify} />;
-    if (page === "records") return <RecordsPage />;
-    if (page === "rewards") return <RewardsPage />;
+    if (page === "records") return <EmptyRecordsPage />;
+    if (page === "rewards") return <EmptyRewardsPage />;
     return (
-      <StudentHome
+      <EmptyStudentHome
         setPage={setPage}
-        checkedIn={checkedIn}
         studentName={
           profile?.name ||
           user?.displayName ||
           user?.email?.split("@")[0] ||
           "학생"
         }
-        toggleCheck={() => {
-          setCheckedIn((v) => !v);
-          notify(
-            checkedIn
-              ? "퇴실 처리가 완료되었어요."
-              : "입실이 확인되었어요. 좋은 공부 되세요!",
-          );
-        }}
       />
     );
   }, [role, page, checkedIn, profile, user]);
