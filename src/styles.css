@@ -2441,6 +2441,30 @@ td {
   color: #527268;
   font-size: 7px;
 }
+.teacher-seats .seat-map button .seat-student-name {
+  position: static;
+  display: block;
+  width: calc(100% - 4px);
+  margin-top: 2px;
+  color: inherit;
+  font-size: 7px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+.teacher-seats .seat-map button.active {
+  min-height: 62px;
+  aspect-ratio: auto;
+}
+.teacher-seats .seat-map button.active svg {
+  width: 15px;
+}
+.teacher-seats .seat-map button.active span {
+  font-size: 7px;
+  opacity: 0.82;
+}
 .teacher-seats .seat-map {
   row-gap: 22px;
 }

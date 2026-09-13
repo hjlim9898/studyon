@@ -1774,18 +1774,35 @@ function LiveSeatManager({ seats: liveSeats, reservations, notify }) {
       <div className="board">교탁 · BOARD</div>
       <div className="seat-map large">
         {displaySeats.map((seat) => {
-          const reservation = reservations.find(
+          const seatReservations = reservations.filter(
             (item) => item.seatId === seat.id && item.status !== "cancelled",
           );
+          const studentNames = [
+            ...new Set(
+              [
+                ...seatReservations.map((item) => item.studentName),
+                seat.studentName,
+              ].filter(Boolean),
+            ),
+          ];
           const state =
-            seat.status === "blocked" ? "late" : reservation ? "active" : "";
+            seat.status === "blocked"
+              ? "late"
+              : seatReservations.length || seat.status === "occupied"
+                ? "active"
+                : "";
           return (
             <button
               className={state}
               key={seat.id}
               title={
-                reservation
-                  ? `${reservation.studentName || "학생"} 예약`
+                studentNames.length
+                  ? `${studentNames.join(", ")} · ${
+                      seatReservations
+                        .map((item) => item.timeSlot)
+                        .filter(Boolean)
+                        .join(" / ") || "예약"
+                    }`
                   : seat.status === "blocked"
                     ? "사용 중지"
                     : "사용 가능"
@@ -1794,7 +1811,11 @@ function LiveSeatManager({ seats: liveSeats, reservations, notify }) {
             >
               <Armchair />
               <span>{seat.id}</span>
-              {reservation && <small>{reservation.studentName}</small>}
+              {studentNames.length > 0 && (
+                <small className="seat-student-name">
+                  {studentNames.join(", ")}
+                </small>
+              )}
             </button>
           );
         })}
