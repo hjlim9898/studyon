@@ -696,6 +696,7 @@ function ApplyPage({ notify, user, profile }) {
     [studySettings, setStudySettings] = useState(null),
     [myReservations, setMyReservations] = useState([]),
     [reservationsLoaded, setReservationsLoaded] = useState(false),
+    [editingPeriod, setEditingPeriod] = useState(null),
     [editingSeat, setEditingSeat] = useState(null),
     [submitting, setSubmitting] = useState(false),
     [reservationError, setReservationError] = useState("");
@@ -836,6 +837,7 @@ function ApplyPage({ notify, user, profile }) {
       .join(", ");
     try {
       await cancelReservationPeriod(reservation.id, periodId, remainingSummary);
+      setEditingPeriod(null);
       setEditingSeat(null);
       notify(
         remaining.length
@@ -849,6 +851,7 @@ function ApplyPage({ notify, user, profile }) {
   const changePeriodSeat = async (reservation, periodId, newSeatId) => {
     try {
       await changeReservationPeriodSeat(reservation.id, periodId, newSeatId);
+      setEditingPeriod(null);
       setEditingSeat(null);
       notify(`${newSeatId} 좌석으로 변경했습니다.`);
     } catch (error) {
@@ -1019,9 +1022,7 @@ function ApplyPage({ notify, user, profile }) {
                 </div>
                 <div className="reservation-info">
                   <span className="reservation-status">
-                    {item.status === "cancelled"
-                      ? "신청 취소"
-                      : item.attendanceStatus || "신청 완료"}
+                    {item.status === "cancelled" ? "신청 취소" : "신청"}
                   </span>
                   {item.status === "cancelled" ? (
                     <>
@@ -1051,19 +1052,35 @@ function ApplyPage({ notify, user, profile }) {
                             {item.attendanceStatus === "신청" && (
                               <div className="period-actions">
                                 <button
+                                  onClick={() => {
+                                    setEditingPeriod(
+                                      editingPeriod === editKey
+                                        ? null
+                                        : editKey,
+                                    );
+                                    setEditingSeat(null);
+                                  }}
+                                >
+                                  <Settings /> 수정
+                                </button>
+                              </div>
+                            )}
+                            {editingPeriod === editKey && (
+                              <div className="period-edit-menu">
+                                <button
                                   onClick={() =>
                                     setEditingSeat(
                                       editingSeat === editKey ? null : editKey,
                                     )
                                   }
                                 >
-                                  좌석 변경
+                                  <Armchair /> 좌석 변경
                                 </button>
                                 <button
                                   className="danger"
                                   onClick={() => cancelPeriod(item, period.id)}
                                 >
-                                  교시 취소
+                                  <X /> 교시 취소
                                 </button>
                               </div>
                             )}

@@ -2224,6 +2224,42 @@ td {
   font-weight: 700;
   cursor: pointer;
 }
+.period-actions button {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.period-actions button svg {
+  width: 10px;
+}
+.period-edit-menu {
+  display: flex;
+  gap: 6px;
+  padding-top: 8px;
+  margin-top: 7px;
+  border-top: 1px solid #dfe8e4;
+}
+.period-edit-menu button {
+  border: 1px solid #cee3da;
+  background: white;
+  color: #187e5d;
+  border-radius: 7px;
+  padding: 6px 8px;
+  font-size: 8px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.period-edit-menu button svg {
+  width: 11px;
+}
+.period-edit-menu button.danger {
+  border-color: #ecd8d4;
+  color: #b25f50;
+  background: #fffafa;
+}
 .period-actions button.danger {
   border-color: #ecd8d4;
   color: #b25f50;
