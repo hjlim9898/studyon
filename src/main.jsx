@@ -334,8 +334,10 @@ const authMessages = {
 
 function LoginPage() {
   const [mode, setMode] = useState("login"),
-    [email, setEmail] = useState(""),
-    [password, setPassword] = useState(""),
+    [email, setEmail] = useState(import.meta.env.VITE_TEST_TEACHER_EMAIL || ""),
+    [password, setPassword] = useState(
+      import.meta.env.VITE_TEST_TEACHER_PASSWORD || "",
+    ),
     [name, setName] = useState(""),
     [studentNumber, setStudentNumber] = useState(""),
     [busy, setBusy] = useState(false),
