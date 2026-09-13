@@ -2785,7 +2785,80 @@ function EmptyStudentHome({ setPage, studentName }) {
   );
 }
 
-function EmptyRecordsPage() {
+function StudentRecordsPage({ user }) {
+  const [selectedMetric, setSelectedMetric] = useState("all");
+  const [reservations, setReservations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(
+    () =>
+      subscribeMyReservations(
+        user.uid,
+        (items) => {
+          setReservations(items);
+          setLoading(false);
+        },
+        () => setLoading(false),
+      ),
+    [user.uid],
+  );
+  const attended = reservations
+    .filter(
+      (item) =>
+        item.status !== "cancelled" &&
+        ["출석", "학습 중"].includes(item.attendanceStatus),
+    )
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const totalMinutes = attended.reduce(
+    (sum, item) => sum + Number(item.studyMinutes || 0),
+    0,
+  );
+  const now = new Date();
+  const monday = new Date(now);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const weekRecords = attended.filter(
+    (item) => new Date(`${item.date}T00:00:00`) >= monday,
+  );
+  const weekMinutes = weekRecords.reduce(
+    (sum, item) => sum + Number(item.studyMinutes || 0),
+    0,
+  );
+  const uniqueDates = [...new Set(attended.map((item) => item.date).filter(Boolean))].sort();
+  let longestDates = [];
+  let currentDates = [];
+  uniqueDates.forEach((date) => {
+    const previous = currentDates[currentDates.length - 1];
+    const consecutive =
+      previous &&
+      (new Date(`${date}T00:00:00`) - new Date(`${previous}T00:00:00`)) /
+        86400000 ===
+        1;
+    currentDates = consecutive ? [...currentDates, date] : [date];
+    if (currentDates.length > longestDates.length) longestDates = [...currentDates];
+  });
+  const displayedRecords =
+    selectedMetric === "week"
+      ? weekRecords
+      : selectedMetric === "streak"
+        ? attended.filter((item) => longestDates.includes(item.date))
+        : attended;
+  const formatMinutes = (minutes) =>
+    `${Math.floor(minutes / 60)}시간 ${minutes % 60}분`;
+  const metricTitle = {
+    all: "전체 학습 기록",
+    week: "이번 주 학습 기록",
+    streak: "최장 연속 학습 기록",
+  }[selectedMetric];
+  const selectMetric = (metric) => {
+    setSelectedMetric(metric);
+    setTimeout(
+      () =>
+        document
+          .getElementById("student-record-detail")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      0,
+    );
+  };
   return (
     <div className="page">
       <div className="title-row">
@@ -2796,43 +2869,74 @@ function EmptyRecordsPage() {
         </div>
       </div>
       <div className="stats-grid">
-        <div className="stat">
+        <button
+          className={`stat stat-clickable ${selectedMetric === "all" ? "selected" : ""}`}
+          onClick={() => selectMetric("all")}
+        >
           <span className="icon mint">
             <BookOpen />
           </span>
           <div>
             <small>누적 학습시간</small>
-            <strong>0시간 0분</strong>
-            <span>총 0회 참여</span>
+            <strong>{formatMinutes(totalMinutes)}</strong>
+            <span>총 {attended.length}회 참여</span>
           </div>
-        </div>
-        <div className="stat">
+        </button>
+        <button
+          className={`stat stat-clickable ${selectedMetric === "week" ? "selected" : ""}`}
+          onClick={() => selectMetric("week")}
+        >
           <span className="icon blue">
             <TrendingUp />
           </span>
           <div>
             <small>이번 주</small>
-            <strong>0시간 0분</strong>
-            <span>아직 기록이 없어요</span>
+            <strong>{formatMinutes(weekMinutes)}</strong>
+            <span>{weekRecords.length}회 참여</span>
           </div>
-        </div>
-        <div className="stat">
+        </button>
+        <button
+          className={`stat stat-clickable ${selectedMetric === "streak" ? "selected" : ""}`}
+          onClick={() => selectMetric("streak")}
+        >
           <span className="icon yellow">
             <Flame />
           </span>
           <div>
             <small>최장 연속 학습</small>
-            <strong>0일</strong>
-            <span>첫 기록을 기다리고 있어요</span>
+            <strong>{longestDates.length}일</strong>
+            <span>연속 참여 기록 보기</span>
+          </div>
+        </button>
+      </div>
+      <section
+        className="panel history student-record-history"
+        id="student-record-detail"
+      >
+        <div className="section-head">
+          <div>
+            <h2>{metricTitle}</h2>
+            <p>{loading ? "기록을 불러오는 중..." : `${displayedRecords.length}개의 기록`}</p>
           </div>
         </div>
-      </div>
-      <section className="panel student-empty">
-        <span className="empty-illustration">
-          <Clock3 />
-        </span>
-        <h2>학습 기록이 없습니다</h2>
-        <p>자율학습에 참여하고 입·퇴실을 완료하면 기록이 여기에 쌓입니다.</p>
+        {displayedRecords.map((item) => (
+          <div className="history-row" key={item.id}>
+            <span className="history-icon"><BookOpen /></span>
+            <div>
+              <b>{item.timeSlot || "자율학습"}</b>
+              <small>{item.date} · {item.seatId || "좌석 미지정"}</small>
+            </div>
+            <strong>{formatMinutes(Number(item.studyMinutes || 0))}</strong>
+            <em>{item.attendanceStatus}</em>
+          </div>
+        ))}
+        {!loading && !displayedRecords.length && (
+          <div className="student-empty compact">
+            <span className="empty-illustration"><Clock3 /></span>
+            <h2>표시할 학습 기록이 없습니다</h2>
+            <p>자율학습에 참여하고 출석하면 기록이 여기에 표시됩니다.</p>
+          </div>
+        )}
       </section>
     </div>
   );
@@ -3054,7 +3158,7 @@ function App() {
       return <TeacherConsole notify={notify} page={page} />;
     if (page === "apply")
       return <ApplyPage notify={notify} user={user} profile={profile} />;
-    if (page === "records") return <EmptyRecordsPage />;
+    if (page === "records") return <StudentRecordsPage user={user} />;
     if (page === "rewards") return <EmptyRewardsPage />;
     return (
       <EmptyStudentHome
