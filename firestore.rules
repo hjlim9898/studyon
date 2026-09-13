@@ -76,7 +76,11 @@ service cloud.firestore {
         && request.resource.data.studentId == request.auth.uid
         && getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.studentId == request.auth.uid
         && request.resource.data.date == getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.date
-        && request.resource.data.seatId == getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.seatId
+        && ((request.resource.data.periodId == 1 && request.resource.data.periodKey == '1')
+          || (request.resource.data.periodId == 2 && request.resource.data.periodKey == '2')
+          || (request.resource.data.periodId == 3 && request.resource.data.periodKey == '3')
+          || (request.resource.data.periodId == 4 && request.resource.data.periodKey == '4'))
+        && request.resource.data.seatId == getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.seatAssignments[request.resource.data.periodKey]
         && request.resource.data.periodId in getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.periodIds;
       allow delete: if isTeacher()
         || (signedIn() && resource.data.studentId == request.auth.uid);
@@ -90,6 +94,10 @@ service cloud.firestore {
         && request.resource.data.studentId == request.auth.uid
         && getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.studentId == request.auth.uid
         && request.resource.data.date == getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.date
+        && ((request.resource.data.periodId == 1 && request.resource.data.periodKey == '1')
+          || (request.resource.data.periodId == 2 && request.resource.data.periodKey == '2')
+          || (request.resource.data.periodId == 3 && request.resource.data.periodKey == '3')
+          || (request.resource.data.periodId == 4 && request.resource.data.periodKey == '4'))
         && request.resource.data.periodId in getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.periodIds;
       allow delete: if isTeacher()
         || (signedIn() && resource.data.studentId == request.auth.uid);

@@ -36,7 +36,9 @@ import {
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import {
+  cancelReservationPeriod,
   cancelStudyReservation,
+  changeReservationPeriodSeat,
   createStudyReservation,
   saveStudySettings,
   seedStudyRoom,
@@ -694,6 +696,7 @@ function ApplyPage({ notify, user, profile }) {
     [studySettings, setStudySettings] = useState(null),
     [myReservations, setMyReservations] = useState([]),
     [reservationsLoaded, setReservationsLoaded] = useState(false),
+    [editingSeat, setEditingSeat] = useState(null),
     [submitting, setSubmitting] = useState(false),
     [reservationError, setReservationError] = useState("");
   useEffect(
@@ -812,6 +815,48 @@ function ApplyPage({ notify, user, profile }) {
       notify("자율학습 신청을 취소했습니다.");
     } catch {
       notify("신청을 취소하지 못했습니다.");
+    }
+  };
+  const getReservationPeriods = (reservation) => {
+    if (reservation.periodIds?.length) {
+      return configuredPeriods.filter((period) =>
+        reservation.periodIds.includes(period.id),
+      );
+    }
+    return configuredPeriods.filter((period) =>
+      reservation.timeSlot?.includes(period.label),
+    );
+  };
+  const cancelPeriod = async (reservation, periodId) => {
+    const remaining = getReservationPeriods(reservation).filter(
+      (period) => period.id !== periodId,
+    );
+    const remainingSummary = remaining
+      .map((period) => `${period.label} ${period.start}–${period.end}`)
+      .join(", ");
+    try {
+      await cancelReservationPeriod(reservation.id, periodId, remainingSummary);
+      setEditingSeat(null);
+      notify(
+        remaining.length
+          ? "선택한 교시 신청을 취소했습니다."
+          : "전체 신청을 취소했습니다.",
+      );
+    } catch {
+      notify("교시 신청을 취소하지 못했습니다.");
+    }
+  };
+  const changePeriodSeat = async (reservation, periodId, newSeatId) => {
+    try {
+      await changeReservationPeriodSeat(reservation.id, periodId, newSeatId);
+      setEditingSeat(null);
+      notify(`${newSeatId} 좌석으로 변경했습니다.`);
+    } catch (error) {
+      notify(
+        error.message === "SEAT_TIME_CONFLICT"
+          ? "이미 다른 학생이 신청한 좌석입니다."
+          : "좌석을 변경하지 못했습니다.",
+      );
     }
   };
   return (
@@ -978,20 +1023,83 @@ function ApplyPage({ notify, user, profile }) {
                       ? "신청 취소"
                       : item.attendanceStatus || "신청 완료"}
                   </span>
-                  <h3>{item.timeSlot}</h3>
-                  <p>
-                    <Armchair /> {item.seatId} 좌석
-                  </p>
-                </div>
-                {item.status !== "cancelled" &&
-                  item.attendanceStatus === "신청" && (
-                    <button
-                      className="cancel-button"
-                      onClick={() => cancelReservation(item)}
-                    >
-                      신청 취소
-                    </button>
+                  {item.status === "cancelled" ? (
+                    <>
+                      <h3>{item.timeSlot || "취소된 신청"}</h3>
+                      <p>
+                        <Armchair /> {item.seatId} 좌석
+                      </p>
+                    </>
+                  ) : (
+                    <div className="reservation-periods">
+                      {getReservationPeriods(item).map((period) => {
+                        const assignedSeat =
+                          item.seatAssignments?.[String(period.id)] ||
+                          item.seatId;
+                        const editKey = `${item.id}-${period.id}`;
+                        return (
+                          <div className="reservation-period" key={period.id}>
+                            <div>
+                              <b>{period.label}</b>
+                              <span>
+                                {period.start}–{period.end}
+                              </span>
+                              <em>
+                                <Armchair /> {assignedSeat}
+                              </em>
+                            </div>
+                            {item.attendanceStatus === "신청" && (
+                              <div className="period-actions">
+                                <button
+                                  onClick={() =>
+                                    setEditingSeat(
+                                      editingSeat === editKey ? null : editKey,
+                                    )
+                                  }
+                                >
+                                  좌석 변경
+                                </button>
+                                <button
+                                  className="danger"
+                                  onClick={() => cancelPeriod(item, period.id)}
+                                >
+                                  교시 취소
+                                </button>
+                              </div>
+                            )}
+                            {editingSeat === editKey && (
+                              <div className="change-seat-picker">
+                                <span>변경할 좌석을 선택하세요</span>
+                                <div>
+                                  {seats.map((seatOption) => (
+                                    <button
+                                      className={
+                                        assignedSeat === seatOption.id
+                                          ? "current"
+                                          : ""
+                                      }
+                                      disabled={assignedSeat === seatOption.id}
+                                      onClick={() =>
+                                        changePeriodSeat(
+                                          item,
+                                          period.id,
+                                          seatOption.id,
+                                        )
+                                      }
+                                      key={seatOption.id}
+                                    >
+                                      {seatOption.id}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
+                </div>
               </article>
             ))
           ) : (
@@ -1441,7 +1549,14 @@ function TeacherConsole({ notify, page }) {
             id: item.id,
             name: item.studentName || student.name || "이름 없음",
             no: item.studentNumber || student.studentNumber || "-",
-            seat: item.seatId || "-",
+            seat:
+              [
+                ...new Set(
+                  Object.values(
+                    item.seatAssignments || { default: item.seatId },
+                  ).filter(Boolean),
+                ),
+              ].join(", ") || "-",
             time: item.timeSlot || "-",
             minutes: item.studyMinutes || 0,
             streak: student.streak || 0,
@@ -1936,7 +2051,10 @@ function LiveSeatManager({ seats: liveSeats, reservations, notify }) {
       <div className="seat-map large">
         {displaySeats.map((seat) => {
           const seatReservations = reservations.filter(
-            (item) => item.seatId === seat.id && item.status !== "cancelled",
+            (item) =>
+              item.status !== "cancelled" &&
+              (item.seatId === seat.id ||
+                Object.values(item.seatAssignments || {}).includes(seat.id)),
           );
           const studyingReservations = seatReservations.filter((item) =>
             ["학습 중", "출석"].includes(item.attendanceStatus),

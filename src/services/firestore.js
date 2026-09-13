@@ -107,6 +107,9 @@ export async function createStudyReservation(data) {
 
     transaction.set(reservationRef, {
       ...data,
+      seatAssignments: Object.fromEntries(
+        periodIds.map((periodId) => [String(periodId), data.seatId]),
+      ),
       status: "applied",
       attendanceStatus: "신청",
       studyMinutes: 0,
@@ -119,6 +122,7 @@ export async function createStudyReservation(data) {
         studentId: data.studentId,
         date: data.date,
         periodId,
+        periodKey: String(periodId),
         seatId: data.seatId,
         createdAt: serverTimestamp(),
       };
@@ -126,6 +130,91 @@ export async function createStudyReservation(data) {
       transaction.set(studentLockRefs[index], lockData);
     });
     return reservationRef;
+  });
+}
+
+export async function cancelReservationPeriod(id, periodId, remainingTimeSlot) {
+  const reservationRef = doc(db, "reservations", id);
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(reservationRef);
+    if (!snapshot.exists()) throw new Error("RESERVATION_NOT_FOUND");
+    const reservation = snapshot.data();
+    const periodKey = String(periodId);
+    const seatId =
+      reservation.seatAssignments?.[periodKey] || reservation.seatId;
+    const remainingPeriodIds = (reservation.periodIds || []).filter(
+      (idValue) => idValue !== periodId,
+    );
+    transaction.delete(
+      doc(db, "reservationLocks", `${reservation.date}_${periodId}_${seatId}`),
+    );
+    transaction.delete(
+      doc(
+        db,
+        "studentReservationLocks",
+        `${reservation.studentId}_${reservation.date}_${periodId}`,
+      ),
+    );
+    const seatAssignments = { ...(reservation.seatAssignments || {}) };
+    delete seatAssignments[periodKey];
+    transaction.update(reservationRef, {
+      periodIds: remainingPeriodIds,
+      seatAssignments,
+      seatId: remainingPeriodIds.length
+        ? seatAssignments[String(remainingPeriodIds[0])] || reservation.seatId
+        : reservation.seatId,
+      timeSlot: remainingTimeSlot,
+      status: remainingPeriodIds.length ? "applied" : "cancelled",
+      updatedAt: serverTimestamp(),
+    });
+  });
+}
+
+export async function changeReservationPeriodSeat(id, periodId, newSeatId) {
+  const reservationRef = doc(db, "reservations", id);
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(reservationRef);
+    if (!snapshot.exists()) throw new Error("RESERVATION_NOT_FOUND");
+    const reservation = snapshot.data();
+    const periodKey = String(periodId);
+    const oldSeatId =
+      reservation.seatAssignments?.[periodKey] || reservation.seatId;
+    if (oldSeatId === newSeatId) return;
+    const newLockRef = doc(
+      db,
+      "reservationLocks",
+      `${reservation.date}_${periodId}_${newSeatId}`,
+    );
+    const newLock = await transaction.get(newLockRef);
+    if (newLock.exists()) throw new Error("SEAT_TIME_CONFLICT");
+    transaction.delete(
+      doc(
+        db,
+        "reservationLocks",
+        `${reservation.date}_${periodId}_${oldSeatId}`,
+      ),
+    );
+    const seatAssignments = {
+      ...(reservation.seatAssignments || {}),
+      [periodKey]: newSeatId,
+    };
+    transaction.update(reservationRef, {
+      seatAssignments,
+      seatId:
+        reservation.periodIds?.[0] === periodId
+          ? newSeatId
+          : reservation.seatId,
+      updatedAt: serverTimestamp(),
+    });
+    transaction.set(newLockRef, {
+      reservationId: id,
+      studentId: reservation.studentId,
+      date: reservation.date,
+      periodId,
+      periodKey,
+      seatId: newSeatId,
+      createdAt: serverTimestamp(),
+    });
   });
 }
 
