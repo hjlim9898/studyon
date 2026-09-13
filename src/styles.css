@@ -1171,21 +1171,21 @@ header {
   opacity: 1;
 }
 .slot-list button.already-reserved {
-  background: #f0f3f2;
-  border-color: #dce4e1;
-  color: #8a9893;
-  cursor: not-allowed;
+  background: #fff6e3;
+  border-color: #edc978;
+  color: #80662e;
+  cursor: help;
 }
 .slot-list button.already-reserved small {
-  color: #168a63;
+  color: #b47710;
   font-weight: 700;
 }
 .slot-list button.already-reserved > svg {
   opacity: 1;
-  color: #7f918b;
+  color: #d39722;
 }
 .slot-list button.already-reserved span b {
-  color: #71827c;
+  color: #9a6d16;
 }
 .legend {
   font-size: 9px;

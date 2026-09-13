@@ -693,6 +693,7 @@ function ApplyPage({ notify, user, profile }) {
     [seat, setSeat] = useState(""),
     [studySettings, setStudySettings] = useState(null),
     [myReservations, setMyReservations] = useState([]),
+    [reservationsLoaded, setReservationsLoaded] = useState(false),
     [submitting, setSubmitting] = useState(false),
     [reservationError, setReservationError] = useState("");
   useEffect(
@@ -705,10 +706,18 @@ function ApplyPage({ notify, user, profile }) {
   );
   useEffect(
     () =>
-      subscribeMyReservations(user.uid, setMyReservations, () =>
-        setReservationError(
-          "신청 내역을 불러오지 못했습니다. Firestore 규칙을 확인해 주세요.",
-        ),
+      subscribeMyReservations(
+        user.uid,
+        (data) => {
+          setMyReservations(data);
+          setReservationsLoaded(true);
+        },
+        () => {
+          setReservationsLoaded(false);
+          setReservationError(
+            "신청 내역을 불러오지 못했습니다. Firestore 규칙을 확인해 주세요.",
+          );
+        },
       ),
     [user.uid],
   );
@@ -744,8 +753,10 @@ function ApplyPage({ notify, user, profile }) {
       ),
     );
   }, [day, studySettings, myReservations]);
-  const selectedPeriods = availablePeriods.filter((period) =>
-    selectedPeriodIds.includes(period.id),
+  const selectedPeriods = availablePeriods.filter(
+    (period) =>
+      selectedPeriodIds.includes(period.id) &&
+      !alreadyReservedPeriodIds.includes(period.id),
   );
   const selectedPeriodSummary = selectedPeriods
     .map((period) => `${period.label} ${period.start}–${period.end}`)
@@ -852,8 +863,17 @@ function ApplyPage({ notify, user, profile }) {
                         ? "selected"
                         : ""
                   }
-                  disabled={alreadyReserved}
-                  onClick={() => togglePeriod(period.id)}
+                  aria-disabled={alreadyReserved}
+                  onClick={() => {
+                    if (alreadyReserved) {
+                      setReservationError(
+                        `${period.label}는 이미 신청된 시간입니다. 나의 신청 내역을 확인해 주세요.`,
+                      );
+                      return;
+                    }
+                    setReservationError("");
+                    togglePeriod(period.id);
+                  }}
                   key={period.id}
                 >
                   <span>
@@ -862,7 +882,7 @@ function ApplyPage({ notify, user, profile }) {
                   </span>
                   <small>
                     {alreadyReserved
-                      ? "신청 완료"
+                      ? "이미 신청됨"
                       : `${[17, 14, 11, 8][i]}석 남음`}
                   </small>
                   <Check />
@@ -910,7 +930,12 @@ function ApplyPage({ notify, user, profile }) {
         </div>
         <button
           className="primary-button"
-          disabled={!seat || selectedPeriodIds.length === 0 || submitting}
+          disabled={
+            !reservationsLoaded ||
+            !seat ||
+            selectedPeriods.length === 0 ||
+            submitting
+          }
           onClick={submitReservation}
         >
           {submitting ? "신청 중..." : "이 일정으로 신청하기"}
