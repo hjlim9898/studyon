@@ -101,6 +101,12 @@ service cloud.firestore {
       allow create, update, delete: if isTeacher();
     }
 
+    // 학습실 운영 정책은 로그인 사용자가 확인하고 교사가 관리합니다.
+    match /settings/{settingId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isTeacher();
+    }
+
     // 정의하지 않은 컬렉션은 항상 차단합니다.
     match /{document=**} {
       allow read, write: if false;
