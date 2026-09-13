@@ -480,14 +480,14 @@ const Progress = ({ value }) => (
   </div>
 );
 
-function StudentHome({ setPage, checkedIn, toggleCheck }) {
+function StudentHome({ setPage, checkedIn, toggleCheck, studentName }) {
   return (
     <div className="page">
       <section className="welcome">
         <div>
           <span className="eyebrow">2026년 9월 14일 월요일</span>
           <h1>
-            민서님, 오늘도 <em>함께 성장해요.</em>
+            {studentName}님, 오늘도 <em>함께 성장해요.</em>
           </h1>
           <p>
             꾸준한 하루가 더 나은 내일을 만들어요. 오늘의 학습도 힘차게 시작해
@@ -1913,6 +1913,12 @@ function App() {
       <StudentHome
         setPage={setPage}
         checkedIn={checkedIn}
+        studentName={
+          profile?.name ||
+          user?.displayName ||
+          user?.email?.split("@")[0] ||
+          "학생"
+        }
         toggleCheck={() => {
           setCheckedIn((v) => !v);
           notify(
@@ -1923,7 +1929,7 @@ function App() {
         }}
       />
     );
-  }, [role, page, checkedIn]);
+  }, [role, page, checkedIn, profile, user]);
   if (user === undefined)
     return (
       <div className="app-loading">
