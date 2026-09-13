@@ -1661,6 +1661,17 @@ function TeacherConsole({ notify, page }) {
 
 function ParticipationLeaderboard({ students, loading }) {
   const medals = ["🥇", "🥈", "🥉"];
+  const [standardsOpen, setStandardsOpen] = useState(false);
+  const pointStandards = [
+    ["출석 스트릭", "5일 연속 참여", "연속학습 배지 + 50P", 50],
+    ["이달의 꾸준이", "월 15회 이상 참여", "특별 배지 + 150P", 150],
+    ["목표 달성", "월 목표 학습시간 달성", "100P", 100],
+    ["성실 출석", "신청 후 지각 및 무단결석 없이 참여", "성실 포인트 50P", 50],
+    ["첫 도전", "처음 자율학습 참여", "30P", 30],
+    ["퍼펙트 위크", "일주일 신청 일정 모두 참여", "70P", 70],
+    ["StudyON 챌린지", "일정 기간 목표 달성", "추첨권 또는 특별 배지", 0],
+    ["함께 공부하기", "학급 전체 목표 달성", "학급 공동 보상", 0],
+  ];
   return (
     <section className="panel leaderboard-panel">
       <div className="section-head">
@@ -1669,9 +1680,13 @@ function ParticipationLeaderboard({ students, loading }) {
           <h2>자율학습 참여 우수 학생</h2>
           <p>누적 포인트 순위와 실제 참여 기록을 함께 보여줍니다.</p>
         </div>
-        <span className="leaderboard-standard">
+        <button
+          className="leaderboard-standard"
+          onClick={() => setStandardsOpen(true)}
+        >
           <Trophy /> 포인트 기준
-        </span>
+          <ChevronRight />
+        </button>
       </div>
       {students.length ? (
         <div className="leaderboard-list">
@@ -1721,6 +1736,48 @@ function ParticipationLeaderboard({ students, loading }) {
               : "순위에 표시할 학생이 없습니다."}
           </b>
           <span>학생의 참여 및 포인트 기록이 생기면 자동으로 집계됩니다.</span>
+        </div>
+      )}
+      {standardsOpen && (
+        <div className="modal-backdrop" onClick={() => setStandardsOpen(false)}>
+          <div
+            className="point-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="point-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="point-modal-head">
+              <div>
+                <span className="eyebrow">REWARD STANDARD</span>
+                <h2 id="point-modal-title">StudyON 포인트 기준</h2>
+                <p>꾸준한 자율학습 참여에 따라 포인트와 배지를 지급합니다.</p>
+              </div>
+              <button aria-label="닫기" onClick={() => setStandardsOpen(false)}>
+                <X />
+              </button>
+            </div>
+            <div className="point-standard-list">
+              {pointStandards.map(
+                ([name, condition, reward, points], index) => (
+                  <article key={name}>
+                    <span className={`standard-icon tone-${index % 4}`}>
+                      {points ? `${points}P` : <Trophy />}
+                    </span>
+                    <div>
+                      <b>{name}</b>
+                      <small>{condition}</small>
+                    </div>
+                    <strong>{reward}</strong>
+                  </article>
+                ),
+              )}
+            </div>
+            <div className="point-modal-note">
+              <Star />
+              <span>포인트는 조건 달성 확인 후 학생 계정에 반영됩니다.</span>
+            </div>
+          </div>
         </div>
       )}
     </section>
