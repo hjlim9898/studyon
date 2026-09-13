@@ -48,10 +48,28 @@ export async function saveStudySettings(settings) {
   );
 }
 
+export function reservationStudyMinutes(reservation) {
+  if (reservation.attendanceStatus !== "출석") {
+    return Number(reservation.studyMinutes || 0);
+  }
+  const periodCount = reservation.periodIds?.length
+    || Object.keys(reservation.seatAssignments || {}).length
+    || (String(reservation.timeSlot || "").match(/\d교시/g) || []).length
+    || 1;
+  return periodCount * 60;
+}
+
 export async function updateReservationStatus(id, status) {
-  await updateDoc(doc(db, "reservations", id), {
-    attendanceStatus: status,
-    updatedAt: serverTimestamp(),
+  const reference = doc(db, "reservations", id);
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(reference);
+    if (!snapshot.exists()) throw new Error("RESERVATION_NOT_FOUND");
+    const reservation = { ...snapshot.data(), attendanceStatus: status };
+    transaction.update(reference, {
+      attendanceStatus: status,
+      studyMinutes: status === "출석" ? reservationStudyMinutes(reservation) : 0,
+      updatedAt: serverTimestamp(),
+    });
   });
 }
 
@@ -350,7 +368,7 @@ export function calculateAutomaticPointDetails(reservations, settings = {}) {
     const month = date.slice(0, 7);
     months[month] ||= { dates: new Set(), minutes: 0 };
     months[month].dates.add(date);
-    months[month].minutes += Number(item.studyMinutes || 0);
+    months[month].minutes += reservationStudyMinutes(item);
   });
 
   let longestStreak = uniqueDates.length ? 1 : 0;
@@ -418,7 +436,7 @@ export function calculateAutomaticPointDetails(reservations, settings = {}) {
     items,
     attendedCount: attended.length,
     totalMinutes: attended.reduce(
-      (sum, item) => sum + Number(item.studyMinutes || 0),
+      (sum, item) => sum + reservationStudyMinutes(item),
       0,
     ),
   };

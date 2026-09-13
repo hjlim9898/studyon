@@ -44,6 +44,7 @@ import {
   createStudyReservation,
   publishRankingProfile,
   publishRankingProfiles,
+  reservationStudyMinutes,
   saveStudySettings,
   seedStudyRoom,
   syncAutomaticPoints,
@@ -1659,7 +1660,7 @@ function TeacherConsole({ notify, page }) {
                 ),
               ].join(", ") || "-",
             time: item.timeSlot || "-",
-            minutes: item.studyMinutes || 0,
+            minutes: reservationStudyMinutes(item),
             streak: student.streak || 0,
             status: item.attendanceStatus || "신청",
           };
@@ -1731,7 +1732,7 @@ function TeacherConsole({ notify, page }) {
             ...student,
             participationCount: completed.length,
             totalMinutes: activity.reduce(
-              (total, item) => total + (item.studyMinutes || 0),
+              (total, item) => total + reservationStudyMinutes(item),
               0,
             ),
           };
@@ -2810,7 +2811,7 @@ function StudentRecordsPage({ user }) {
     )
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   const totalMinutes = attended.reduce(
-    (sum, item) => sum + Number(item.studyMinutes || 0),
+    (sum, item) => sum + reservationStudyMinutes(item),
     0,
   );
   const now = new Date();
@@ -2821,7 +2822,7 @@ function StudentRecordsPage({ user }) {
     (item) => new Date(`${item.date}T00:00:00`) >= monday,
   );
   const weekMinutes = weekRecords.reduce(
-    (sum, item) => sum + Number(item.studyMinutes || 0),
+    (sum, item) => sum + reservationStudyMinutes(item),
     0,
   );
   const uniqueDates = [...new Set(attended.map((item) => item.date).filter(Boolean))].sort();
@@ -2927,7 +2928,7 @@ function StudentRecordsPage({ user }) {
               <b>{item.timeSlot || "자율학습"}</b>
               <small>{item.date} · {item.seatId || "좌석 미지정"}</small>
             </div>
-            <strong>{formatMinutes(Number(item.studyMinutes || 0))}</strong>
+            <strong>{formatMinutes(reservationStudyMinutes(item))}</strong>
             <em>{item.attendanceStatus}</em>
           </div>
         ))}
