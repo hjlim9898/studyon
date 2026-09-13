@@ -1,0 +1,109 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function userProfile() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isTeacher() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && userProfile().data.role == 'teacher';
+    }
+
+    function validStudentProfile() {
+      return request.resource.data.keys().hasOnly([
+          'uid', 'name', 'studentNumber', 'className', 'role',
+          'points', 'streak', 'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role == 'student'
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1
+        && request.resource.data.name.size() <= 30;
+    }
+
+    function validReservation() {
+      return request.resource.data.keys().hasAll([
+          'studentId', 'date', 'timeSlot', 'seatId', 'status'
+        ])
+        && request.resource.data.studentId == request.auth.uid
+        && request.resource.data.date is string
+        && request.resource.data.timeSlot is string
+        && request.resource.data.seatId is string
+        && request.resource.data.status in ['applied', 'cancelled'];
+    }
+
+    // 사용자 프로필. 교사 권한은 클라이언트에서 스스로 부여할 수 없습니다.
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isTeacher();
+      allow create: if isOwner(userId) && validStudentProfile();
+      allow update: if isTeacher()
+        || (isOwner(userId)
+          && validStudentProfile()
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.points == resource.data.points);
+      allow delete: if isTeacher();
+    }
+
+    // 학생은 본인의 신청만 생성·조회·취소할 수 있습니다.
+    match /reservations/{reservationId} {
+      allow read: if isTeacher()
+        || (signedIn() && resource.data.studentId == request.auth.uid);
+      allow create: if signedIn() && validReservation();
+      allow update: if isTeacher()
+        || (signedIn()
+          && resource.data.studentId == request.auth.uid
+          && validReservation()
+          && request.resource.data.studentId == resource.data.studentId);
+      allow delete: if isTeacher()
+        || (signedIn() && resource.data.studentId == request.auth.uid);
+    }
+
+    // 좌석 현황은 로그인 사용자 모두가 보고, 교사만 수정합니다.
+    match /seats/{seatId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isTeacher();
+    }
+
+    // 출결과 실제 학습시간은 교사가 기록합니다.
+    match /attendance/{attendanceId} {
+      allow read: if isTeacher()
+        || (signedIn() && resource.data.studentId == request.auth.uid);
+      allow create, update, delete: if isTeacher();
+    }
+
+    match /studyRecords/{recordId} {
+      allow read: if isTeacher()
+        || (signedIn() && resource.data.studentId == request.auth.uid);
+      allow create, update, delete: if isTeacher();
+    }
+
+    // 포인트·배지는 본인만 조회하고 교사만 지급·회수합니다.
+    match /rewards/{rewardId} {
+      allow read: if isTeacher()
+        || (signedIn() && resource.data.studentId == request.auth.uid);
+      allow create, update, delete: if isTeacher();
+    }
+
+    // 챌린지는 모두 확인할 수 있고 교사만 운영합니다.
+    match /challenges/{challengeId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isTeacher();
+    }
+
+    // 정의하지 않은 컬렉션은 항상 차단합니다.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
