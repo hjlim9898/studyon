@@ -45,6 +45,7 @@ import {
   publishRankingProfiles,
   saveStudySettings,
   seedStudyRoom,
+  syncAutomaticPoints,
   subscribeStudySettings,
   subscribeMyReservations,
   subscribeToCollection,
@@ -1563,6 +1564,7 @@ function TeacherConsole({ notify, page }) {
   const [reservations, setReservations] = useState([]),
     [studentProfiles, setStudentProfiles] = useState([]),
     [roomSeats, setRoomSeats] = useState([]),
+    [studySettings, setStudySettings] = useState(defaultSettings),
     [query, setQuery] = useState(""),
     [filter, setFilter] = useState("전체"),
     [loading, setLoading] = useState(true),
@@ -1612,6 +1614,21 @@ function TeacherConsole({ notify, page }) {
     ];
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
   }, []);
+  useEffect(
+    () =>
+      subscribeStudySettings(
+        (data) => setStudySettings((current) => ({ ...current, ...(data || {}) })),
+        () => {},
+      ),
+    [],
+  );
+  useEffect(() => {
+    if (!loading && studentProfiles.length) {
+      syncAutomaticPoints(studentProfiles, reservations, studySettings).catch(
+        () => setDbError("포인트를 자동 계산하지 못했습니다."),
+      );
+    }
+  }, [loading, studentProfiles, reservations, studySettings]);
   const rows = useMemo(
     () =>
       reservations

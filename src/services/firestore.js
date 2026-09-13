@@ -327,6 +327,124 @@ export async function publishRankingProfiles(students) {
   await batch.commit();
 }
 
+function dateKey(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value || "") ? value : null;
+}
+
+export function calculateAutomaticPoints(reservations, settings = {}) {
+  const attended = reservations.filter(
+    (item) =>
+      item.status !== "cancelled" &&
+      ["출석", "학습 중"].includes(item.attendanceStatus),
+  );
+  if (!attended.length) return 0;
+
+  const policies = Object.fromEntries(
+    (settings.rewardPolicies || []).map((policy) => [policy.id, policy]),
+  );
+  const reward = (id, fallback) =>
+    policies[id]?.enabled === false ? 0 : Number(policies[id]?.points ?? fallback);
+  const uniqueDates = [...new Set(attended.map((item) => dateKey(item.date)).filter(Boolean))].sort();
+  const months = {};
+  attended.forEach((item) => {
+    const date = dateKey(item.date);
+    if (!date) return;
+    const month = date.slice(0, 7);
+    months[month] ||= { dates: new Set(), minutes: 0 };
+    months[month].dates.add(date);
+    months[month].minutes += Number(item.studyMinutes || 0);
+  });
+
+  let longestStreak = uniqueDates.length ? 1 : 0;
+  let streak = longestStreak;
+  for (let index = 1; index < uniqueDates.length; index += 1) {
+    const previous = new Date(`${uniqueDates[index - 1]}T00:00:00`);
+    const current = new Date(`${uniqueDates[index]}T00:00:00`);
+    streak = (current - previous) / 86400000 === 1 ? streak + 1 : 1;
+    longestStreak = Math.max(longestStreak, streak);
+  }
+
+  const basePoints = attended.length * Number(settings.attendancePoints ?? 10);
+  const firstStudy = reward("firstStudy", 30);
+  const streakPoints = longestStreak >= 5 ? reward("streak5", 50) : 0;
+  const monthlyConsistency = Object.values(months).filter(
+    (month) => month.dates.size >= 15,
+  ).length * reward("monthly15", 150);
+  const monthlyGoal = Object.values(months).filter(
+    (month) => month.minutes >= 40 * 60,
+  ).length * reward("monthlyGoal", 100);
+  const active = reservations.filter((item) => item.status !== "cancelled");
+  const perfectAttendance =
+    active.length > 0 &&
+    active.every((item) => ["출석", "학습 중"].includes(item.attendanceStatus))
+      ? reward("perfectAttendance", 50)
+      : 0;
+
+  const weeks = {};
+  active.forEach((item) => {
+    const date = dateKey(item.date);
+    if (!date) return;
+    const value = new Date(`${date}T00:00:00`);
+    const monday = new Date(value);
+    monday.setDate(value.getDate() - ((value.getDay() + 6) % 7));
+    const key = monday.toISOString().slice(0, 10);
+    weeks[key] ||= [];
+    weeks[key].push(item);
+  });
+  const perfectWeeks = Object.values(weeks).filter(
+    (items) =>
+      new Set(items.map((item) => item.date)).size >= 2 &&
+      items.every((item) => ["출석", "학습 중"].includes(item.attendanceStatus)),
+  ).length;
+  const perfectWeekPoints = perfectWeeks * reward("perfectWeek", 70);
+
+  return (
+    basePoints +
+    firstStudy +
+    streakPoints +
+    monthlyConsistency +
+    monthlyGoal +
+    perfectAttendance +
+    perfectWeekPoints
+  );
+}
+
+export async function syncAutomaticPoints(students, reservations, settings) {
+  const changed = students
+    .map((student) => ({
+      student,
+      points: calculateAutomaticPoints(
+        reservations.filter((item) => item.studentId === student.id),
+        settings,
+      ),
+    }))
+    .filter(({ student, points }) => Number(student.points || 0) !== points);
+  if (!changed.length) return false;
+  const batch = writeBatch(db);
+  changed.forEach(({ student, points }) => {
+    batch.update(doc(db, "users", student.id), {
+      points,
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      doc(db, "publicRankings", student.id),
+      {
+        name: student.name || "이름 없음",
+        className:
+          classNameFromStudentNumber(student.studentNumber) ||
+          student.className ||
+          "학급 미지정",
+        points,
+        streak: student.streak || 0,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
+  await batch.commit();
+  return true;
+}
+
 export async function seedStudyRoom(students) {
   const batch = writeBatch(db);
   students.forEach((student, index) => {
