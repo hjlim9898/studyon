@@ -347,6 +347,119 @@ header {
     padding-bottom: 22px;
   }
 }
+.leaderboard-panel {
+  margin-bottom: 18px;
+  padding: 22px;
+}
+.leaderboard-standard {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  color: #a06e13;
+  background: #fff3d8;
+  border-radius: 12px;
+  padding: 6px 9px;
+}
+.leaderboard-standard svg {
+  width: 13px;
+}
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+}
+.leader-row {
+  display: grid;
+  grid-template-columns: 40px 40px minmax(130px, 1fr) 70px 115px 85px 90px;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 8px;
+  border-top: 1px solid #edf1ef;
+}
+.rank-number {
+  text-align: center;
+  font-size: 17px;
+  font-weight: 800;
+  color: #82918c;
+}
+.leader-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #e4f6ee;
+  color: #138d63;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+.leader-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.leader-name b {
+  font-size: 11px;
+}
+.leader-name small,
+.leader-metric small {
+  font-size: 8px;
+  color: #899691;
+  margin-top: 3px;
+}
+.leader-metric {
+  display: flex;
+  flex-direction: column;
+}
+.leader-metric b {
+  font-size: 10px;
+  margin-top: 3px;
+}
+.streak-metric b {
+  display: flex;
+  align-items: center;
+  color: #d68422;
+}
+.streak-metric svg {
+  width: 12px;
+  fill: #eba039;
+}
+.leader-points {
+  text-align: right;
+  font-size: 13px;
+  color: #138f65;
+}
+.rank-1 {
+  background: linear-gradient(90deg, #fffaf0, transparent);
+  border-radius: 10px;
+}
+.rank-1 .leader-avatar {
+  background: #fff0c9;
+  color: #c28312;
+}
+.rank-1 .leader-points {
+  color: #b97b0d;
+}
+@media (max-width: 900px) {
+  .leader-row {
+    grid-template-columns: 32px 36px 1fr 70px 82px;
+  }
+  .leader-metric:nth-of-type(3),
+  .streak-metric {
+    display: none;
+  }
+}
+@media (max-width: 560px) {
+  .leader-row {
+    grid-template-columns: 28px 34px 1fr 70px;
+  }
+  .leader-metric {
+    display: none;
+  }
+  .leader-points {
+    font-size: 11px;
+  }
+}
 .bell {
   position: relative;
   border: 0;

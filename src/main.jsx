@@ -1416,6 +1416,38 @@ function TeacherConsole({ notify, page }) {
     missing = reservations.filter((item) =>
       ["신청", "지각", "결석"].includes(item.attendanceStatus || "신청"),
     ).length;
+  const participationLeaders = useMemo(
+    () =>
+      studentProfiles
+        .map((student) => {
+          const activity = reservations.filter(
+            (item) =>
+              item.studentId === student.id && item.status !== "cancelled",
+          );
+          const completed = activity.filter((item) =>
+            ["출석", "학습 중"].includes(item.attendanceStatus),
+          );
+          return {
+            ...student,
+            participationCount: completed.length,
+            totalMinutes: activity.reduce(
+              (total, item) => total + (item.studyMinutes || 0),
+              0,
+            ),
+          };
+        })
+        .filter(
+          (student) =>
+            (student.points || 0) > 0 || student.participationCount > 0,
+        )
+        .sort(
+          (a, b) =>
+            (b.points || 0) - (a.points || 0) ||
+            b.participationCount - a.participationCount,
+        )
+        .slice(0, 5),
+    [studentProfiles, reservations],
+  );
   return (
     <div className="page">
       <div className="title-row">
@@ -1499,6 +1531,12 @@ function TeacherConsole({ notify, page }) {
           </div>
         </div>
       </div>
+      {page === "admin" && (
+        <ParticipationLeaderboard
+          students={participationLeaders}
+          loading={loading}
+        />
+      )}
       {page === "seats" ? (
         <LiveSeatManager
           seats={roomSeats}
@@ -1618,6 +1656,74 @@ function TeacherConsole({ notify, page }) {
         </section>
       )}
     </div>
+  );
+}
+
+function ParticipationLeaderboard({ students, loading }) {
+  const medals = ["🥇", "🥈", "🥉"];
+  return (
+    <section className="panel leaderboard-panel">
+      <div className="section-head">
+        <div>
+          <span className="eyebrow">TOP PARTICIPATION</span>
+          <h2>자율학습 참여 우수 학생</h2>
+          <p>누적 포인트 순위와 실제 참여 기록을 함께 보여줍니다.</p>
+        </div>
+        <span className="leaderboard-standard">
+          <Trophy /> 포인트 기준
+        </span>
+      </div>
+      {students.length ? (
+        <div className="leaderboard-list">
+          {students.map((student, index) => (
+            <article
+              className={`leader-row rank-${index + 1}`}
+              key={student.id}
+            >
+              <span className="rank-number">{medals[index] || index + 1}</span>
+              <span className="leader-avatar">{student.name?.[0] || "학"}</span>
+              <div className="leader-name">
+                <b>{student.name || "이름 없음"}</b>
+                <small>
+                  {student.className || "학급 미지정"} ·{" "}
+                  {student.studentNumber || "학번 없음"}
+                </small>
+              </div>
+              <div className="leader-metric">
+                <small>참여</small>
+                <b>{student.participationCount}회</b>
+              </div>
+              <div className="leader-metric">
+                <small>학습시간</small>
+                <b>
+                  {Math.floor(student.totalMinutes / 60)}시간{" "}
+                  {student.totalMinutes % 60}분
+                </b>
+              </div>
+              <div className="leader-metric streak-metric">
+                <small>연속 학습</small>
+                <b>
+                  <Flame /> {student.streak || 0}일
+                </b>
+              </div>
+              <strong className="leader-points">
+                {(student.points || 0).toLocaleString()} P
+              </strong>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="empty-state">
+          <Trophy />
+          <b>
+            {loading
+              ? "학생 정보를 불러오는 중입니다."
+              : "순위에 표시할 학생이 없습니다."}
+          </b>
+          <span>학생의 참여 및 포인트 기록이 생기면 자동으로 집계됩니다.</span>
+        </div>
+      )}
+    </section>
   );
 }
 
