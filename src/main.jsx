@@ -697,7 +697,6 @@ function ApplyPage({ notify, user, profile }) {
     [myReservations, setMyReservations] = useState([]),
     [reservationsLoaded, setReservationsLoaded] = useState(false),
     [editingPeriod, setEditingPeriod] = useState(null),
-    [editingSeat, setEditingSeat] = useState(null),
     [submitting, setSubmitting] = useState(false),
     [reservationError, setReservationError] = useState("");
   useEffect(
@@ -838,7 +837,6 @@ function ApplyPage({ notify, user, profile }) {
     try {
       await cancelReservationPeriod(reservation.id, periodId, remainingSummary);
       setEditingPeriod(null);
-      setEditingSeat(null);
       notify(
         remaining.length
           ? "선택한 교시 신청을 취소했습니다."
@@ -852,7 +850,6 @@ function ApplyPage({ notify, user, profile }) {
     try {
       await changeReservationPeriodSeat(reservation.id, periodId, newSeatId);
       setEditingPeriod(null);
-      setEditingSeat(null);
       notify(`${newSeatId} 좌석으로 변경했습니다.`);
     } catch (error) {
       notify(
@@ -1058,7 +1055,6 @@ function ApplyPage({ notify, user, profile }) {
                                         ? null
                                         : editKey,
                                     );
-                                    setEditingSeat(null);
                                   }}
                                 >
                                   <Settings /> 수정
@@ -1066,27 +1062,18 @@ function ApplyPage({ notify, user, profile }) {
                               </div>
                             )}
                             {editingPeriod === editKey && (
-                              <div className="period-edit-menu">
-                                <button
-                                  onClick={() =>
-                                    setEditingSeat(
-                                      editingSeat === editKey ? null : editKey,
-                                    )
-                                  }
-                                >
-                                  <Armchair /> 좌석 변경
-                                </button>
-                                <button
-                                  className="danger"
-                                  onClick={() => cancelPeriod(item, period.id)}
-                                >
-                                  <X /> 교시 취소
-                                </button>
-                              </div>
-                            )}
-                            {editingSeat === editKey && (
                               <div className="change-seat-picker">
-                                <span>변경할 좌석을 선택하세요</span>
+                                <div className="seat-picker-head">
+                                  <span>변경할 좌석을 선택하세요</span>
+                                  <button
+                                    className="danger"
+                                    onClick={() =>
+                                      cancelPeriod(item, period.id)
+                                    }
+                                  >
+                                    <X /> 이 교시 취소
+                                  </button>
+                                </div>
                                 <div>
                                   {seats.map((seatOption) => (
                                     <button

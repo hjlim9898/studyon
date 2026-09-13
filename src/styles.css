@@ -2269,13 +2269,30 @@ td {
   padding-top: 8px;
   border-top: 1px solid #dfe8e4;
 }
-.change-seat-picker > span {
-  display: block;
+.seat-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.seat-picker-head > span {
   font-size: 8px;
   color: #71827c;
-  margin-bottom: 7px;
 }
-.change-seat-picker > div {
+.seat-picker-head button.danger {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  border-color: #ecd8d4;
+  background: #fffafa;
+  color: #b25f50;
+  width: auto;
+  padding: 5px 7px;
+}
+.seat-picker-head button.danger svg {
+  width: 10px;
+}
+.change-seat-picker > div:last-child {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   gap: 4px;
@@ -2308,7 +2325,7 @@ td {
   margin-top: 3px;
 }
 @media (max-width: 560px) {
-  .change-seat-picker > div {
+  .change-seat-picker > div:last-child {
     grid-template-columns: repeat(6, 1fr);
   }
 }
