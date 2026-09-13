@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CalendarDays, LayoutDashboard, Armchair, Clock3, Trophy, LogOut, Bell, ChevronRight, Flame, Target, Star, Check, X, Users, Search, Settings, ClipboardCheck, Menu, Power, Sparkles, Medal, BookOpen, TrendingUp } from 'lucide-react';
-import './firebase';
+import { createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth';
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { auth, db } from './firebase';
 import './styles.css';
 
 const days = [
@@ -20,17 +22,33 @@ function Toast({message,onDone}) { useEffect(()=>{const t=setTimeout(onDone,2400
 
 function Logo(){return <div className="logo"><span className="logo-mark"><Power/></span><span>Study<b>ON</b></span></div>}
 
-function Sidebar({role,setRole,page,setPage,open,setOpen}) {
+function Sidebar({role,page,setPage,open,setOpen,user,profile,onLogout}) {
   const student=[['home',LayoutDashboard,'홈'],['apply',CalendarDays,'자율학습 신청'],['records',Clock3,'학습 기록'],['rewards',Trophy,'포인트 & 배지']];
   const teacher=[['admin',LayoutDashboard,'운영 현황'],['attendance',ClipboardCheck,'출결 관리'],['seats',Armchair,'좌석 배치'],['students',Users,'학생 관리']];
   return <><div className={`sidebar ${open?'open':''}`}>
     <Logo/><button className="side-close" onClick={()=>setOpen(false)}><X/></button>
     <nav>{(role==='student'?student:teacher).map(([id,Icon,label])=><button key={id} className={page===id?'active':''} onClick={()=>{setPage(id);setOpen(false)}}><Icon/><span>{label}</span></button>)}</nav>
-    <div className="side-bottom"><div className="profile"><div className="avatar">{role==='student'?'김':'선'}</div><div><strong>{role==='student'?'김민서':'박지영 선생님'}</strong><span>{role==='student'?'2학년 1반 1번':'2학년부 · 관리자'}</span></div></div><button className="logout"><LogOut/></button></div>
+    <div className="side-bottom"><div className="profile"><div className="avatar">{(profile?.name || user?.email || 'U')[0]}</div><div><strong>{profile?.name || user?.displayName || 'StudyON 사용자'}</strong><span>{role==='teacher'?'교사 · 관리자':profile?.studentNumber || user?.email}</span></div></div><button className="logout" aria-label="로그아웃" title="로그아웃" onClick={onLogout}><LogOut/></button></div>
   </div>{open&&<div className="overlay" onClick={()=>setOpen(false)}/>}</>
 }
 
-function Header({role,setRole,setPage,setOpen}){return <header><button className="menu" onClick={()=>setOpen(true)}><Menu/></button><div className="role-switch"><button className={role==='student'?'on':''} onClick={()=>{setRole('student');setPage('home')}}>학생</button><button className={role==='teacher'?'on':''} onClick={()=>{setRole('teacher');setPage('admin')}}>교사</button></div><div className="header-right"><button className="bell"><Bell/><i/></button><div className="header-avatar">{role==='student'?'김':'선'}</div></div></header>}
+function Header({role,setRole,setPage,setOpen,canManage,profile,user}){return <header><button className="menu" onClick={()=>setOpen(true)}><Menu/></button>{canManage&&<div className="role-switch"><button className={role==='student'?'on':''} onClick={()=>{setRole('student');setPage('home')}}>학생 화면</button><button className={role==='teacher'?'on':''} onClick={()=>{setRole('teacher');setPage('admin')}}>교사 화면</button></div>}<div className="header-right"><button className="bell"><Bell/><i/></button><div className="header-avatar">{(profile?.name || user?.email || 'U')[0]}</div></div></header>}
+
+const authMessages = {
+  'auth/invalid-credential':'이메일 또는 비밀번호가 올바르지 않습니다.',
+  'auth/email-already-in-use':'이미 가입된 이메일입니다.',
+  'auth/weak-password':'비밀번호는 6자 이상 입력해 주세요.',
+  'auth/invalid-email':'올바른 이메일 주소를 입력해 주세요.',
+  'auth/too-many-requests':'요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.',
+  'auth/network-request-failed':'네트워크 연결을 확인해 주세요.',
+};
+
+function LoginPage(){
+ const [mode,setMode]=useState('login'),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[name,setName]=useState(''),[studentNumber,setStudentNumber]=useState(''),[busy,setBusy]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ const submit=async e=>{e.preventDefault();setError('');setNotice('');setBusy(true);try{if(mode==='signup'){const result=await createUserWithEmailAndPassword(auth,email,password);await updateProfile(result.user,{displayName:name});await setDoc(doc(db,'users',result.user.uid),{uid:result.user.uid,name,studentNumber,className:'',role:'student',points:0,streak:0,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});}else{await signInWithEmailAndPassword(auth,email,password)}}catch(err){setError(authMessages[err.code]||'로그인 처리 중 오류가 발생했습니다.');}finally{setBusy(false)}};
+ const reset=async()=>{setError('');setNotice('');if(!email){setError('비밀번호를 재설정할 이메일을 먼저 입력해 주세요.');return}setBusy(true);try{await sendPasswordResetEmail(auth,email);setNotice('비밀번호 재설정 메일을 보냈습니다.')}catch(err){setError(authMessages[err.code]||'재설정 메일을 보내지 못했습니다.')}finally{setBusy(false)}};
+ return <div className="auth-page"><section className="auth-brand"><Logo/><div><span className="eyebrow">STUDY BETTER, GROW TOGETHER</span><h1>오늘의 집중이<br/><em>내일의 가능성</em>이 됩니다.</h1><p>신청부터 좌석, 출결, 학습 기록까지.<br/>StudyON에서 나의 성장을 이어가세요.</p></div><div className="auth-features"><span><CalendarDays/>간편한 학습 신청</span><span><Armchair/>실시간 좌석 확인</span><span><Trophy/>성장을 위한 보상</span></div></section><section className="auth-form-wrap"><form className="auth-card" onSubmit={submit}><div className="mobile-logo"><Logo/></div><span className="eyebrow">WELCOME TO STUDYON</span><h2>{mode==='login'?'다시 만나서 반가워요!':'StudyON을 시작해 볼까요?'}</h2><p>{mode==='login'?'등록된 계정으로 로그인해 주세요.':'학생 정보를 입력해 계정을 만드세요.'}</p>{mode==='signup'&&<div className="auth-inline"><label>이름<input required value={name} onChange={e=>setName(e.target.value)} placeholder="홍길동"/></label><label>학번<input required value={studentNumber} onChange={e=>setStudentNumber(e.target.value)} placeholder="20101"/></label></div>}<label>이메일<input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@school.kr" autoComplete="email"/></label><label>비밀번호<input type="password" required minLength="6" value={password} onChange={e=>setPassword(e.target.value)} placeholder="6자 이상 입력" autoComplete={mode==='login'?'current-password':'new-password'}/></label>{mode==='login'&&<button type="button" className="forgot" onClick={reset}>비밀번호를 잊으셨나요?</button>}{error&&<div className="auth-alert error">{error}</div>}{notice&&<div className="auth-alert success"><Check/>{notice}</div>}<button className="auth-submit" disabled={busy}>{busy?'처리 중...':mode==='login'?'로그인':'학생 계정 만들기'}<ChevronRight/></button><div className="auth-divider"><span>또는</span></div><button type="button" className="auth-toggle" onClick={()=>{setMode(mode==='login'?'signup':'login');setError('');setNotice('')}}>{mode==='login'?'아직 계정이 없나요? 회원가입':'이미 계정이 있나요? 로그인'}</button><small className="auth-help">교사 계정은 학교 관리자에게 문의해 주세요.</small></form></section></div>
+}
 
 const Progress=({value})=><div className="progress"><i style={{width:`${value}%`}}/></div>;
 
@@ -60,6 +78,6 @@ function TeacherDashboard({students,setStudents,notify,page}){const [query,setQu
 
 function TeacherSeats(){return <section className="panel teacher-seats"><div className="section-head"><div><h2>제1 자율학습실</h2><p>총 60석 · 사용 중 42석</p></div><div className="legend"><i/>빈 좌석 <i className="active"/>사용 중 <i className="late"/>지각</div></div><div className="board">교탁 · BOARD</div><div className="seat-map large">{Array.from({length:40},(_,i)=><button className={i===9?'late':[1,3,4,7,10,12,13,17,19,21,22,25,27,30,31,34,37].includes(i)?'active':''} key={i}><Armchair/><span>{String.fromCharCode(65+Math.floor(i/10))}-{String(i%10+1).padStart(2,'0')}</span></button>)}</div></section>}
 
-function App(){const [role,setRole]=useState('student'),[page,setPage]=useState('home'),[checkedIn,setCheckedIn]=useState(false),[toast,setToast]=useState(''),[open,setOpen]=useState(false); const [students,setStudents]=useState(()=>{try{return JSON.parse(localStorage.getItem('studyon_students'))||initialStudents}catch{return initialStudents}}); useEffect(()=>localStorage.setItem('studyon_students',JSON.stringify(students)),[students]); const notify=m=>setToast(m); const content=useMemo(()=>{if(role==='teacher')return <TeacherDashboard students={students} setStudents={setStudents} notify={notify} page={page}/>; if(page==='apply')return <ApplyPage notify={notify}/>;if(page==='records')return <RecordsPage/>;if(page==='rewards')return <RewardsPage/>;return <StudentHome setPage={setPage} checkedIn={checkedIn} toggleCheck={()=>{setCheckedIn(v=>!v);notify(checkedIn?'퇴실 처리가 완료되었어요.':'입실이 확인되었어요. 좋은 공부 되세요!')}}/>},[role,page,students,checkedIn]);return <div className="app"><Sidebar {...{role,setRole,page,setPage,open,setOpen}}/><main><Header {...{role,setRole,setPage,setOpen}}/>{content}</main>{toast&&<Toast message={toast} onDone={()=>setToast('')}/>}</div>}
+function App(){const [user,setUser]=useState(undefined),[profile,setProfile]=useState(null),[role,setRole]=useState('student'),[page,setPage]=useState('home'),[checkedIn,setCheckedIn]=useState(false),[toast,setToast]=useState(''),[open,setOpen]=useState(false); const [students,setStudents]=useState(()=>{try{return JSON.parse(localStorage.getItem('studyon_students'))||initialStudents}catch{return initialStudents}}); useEffect(()=>onAuthStateChanged(auth,async current=>{setUser(current);if(!current){setProfile(null);setRole('student');setPage('home');return}try{const snap=await getDoc(doc(db,'users',current.uid));const data=snap.exists()?snap.data():{name:current.displayName||current.email?.split('@')[0],role:'student'};setProfile(data);setRole(data.role==='teacher'?'teacher':'student');setPage(data.role==='teacher'?'admin':'home')}catch{setProfile({name:current.displayName||current.email?.split('@')[0],role:'student'});setRole('student')}}),[]); useEffect(()=>localStorage.setItem('studyon_students',JSON.stringify(students)),[students]); const notify=m=>setToast(m); const content=useMemo(()=>{if(role==='teacher')return <TeacherDashboard students={students} setStudents={setStudents} notify={notify} page={page}/>; if(page==='apply')return <ApplyPage notify={notify}/>;if(page==='records')return <RecordsPage/>;if(page==='rewards')return <RewardsPage/>;return <StudentHome setPage={setPage} checkedIn={checkedIn} toggleCheck={()=>{setCheckedIn(v=>!v);notify(checkedIn?'퇴실 처리가 완료되었어요.':'입실이 확인되었어요. 좋은 공부 되세요!')}}/>},[role,page,students,checkedIn]);if(user===undefined)return <div className="app-loading"><span className="logo-mark"><Power/></span><b>StudyON</b></div>;if(!user)return <LoginPage/>;return <div className="app"><Sidebar {...{role,page,setPage,open,setOpen,user,profile}} onLogout={()=>signOut(auth)}/><main><Header {...{role,setRole,setPage,setOpen,profile,user}} canManage={profile?.role==='teacher'}/>{content}</main>{toast&&<Toast message={toast} onDone={()=>setToast('')}/>}</div>}
 
 createRoot(document.getElementById('root')).render(<App/>);
