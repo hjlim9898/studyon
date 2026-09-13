@@ -1767,7 +1767,8 @@ function LiveSeatManager({ seats: liveSeats, reservations, notify }) {
         </div>
         <div className="legend">
           <i />빈 좌석 <i className="active" />
-          예약 <i className="late" />
+          예약 <i className="studying" />
+          사용 중 <i className="late" />
           사용 중지
         </div>
       </div>
@@ -1777,16 +1778,23 @@ function LiveSeatManager({ seats: liveSeats, reservations, notify }) {
           const seatReservations = reservations.filter(
             (item) => item.seatId === seat.id && item.status !== "cancelled",
           );
+          const studyingReservations = seatReservations.filter((item) =>
+            ["학습 중", "출석"].includes(item.attendanceStatus),
+          );
           const studentNames = [
             ...new Set(
               [
-                ...seatReservations.map((item) => item.studentName),
-                seat.studentName,
+                ...(studyingReservations.length
+                  ? studyingReservations
+                  : seatReservations
+                ).map((item) => item.studentName),
+                ...(studyingReservations.length ? [] : [seat.studentName]),
               ].filter(Boolean),
             ),
           ];
-          const state =
-            seat.status === "blocked"
+          const state = studyingReservations.length
+            ? "studying"
+            : seat.status === "blocked"
               ? "late"
               : seatReservations.length || seat.status === "occupied"
                 ? "active"
@@ -1797,7 +1805,7 @@ function LiveSeatManager({ seats: liveSeats, reservations, notify }) {
               key={seat.id}
               title={
                 studentNames.length
-                  ? `${studentNames.join(", ")} · ${
+                  ? `${studentNames.join(", ")} · ${studyingReservations.length ? "사용 중" : "예약"} · ${
                       seatReservations
                         .map((item) => item.timeSlot)
                         .filter(Boolean)
@@ -1807,7 +1815,13 @@ function LiveSeatManager({ seats: liveSeats, reservations, notify }) {
                     ? "사용 중지"
                     : "사용 가능"
               }
-              onClick={() => toggle(seat)}
+              onClick={() =>
+                studyingReservations.length
+                  ? notify(
+                      `${studentNames.join(", ")} 학생이 현재 학습 중입니다.`,
+                    )
+                  : toggle(seat)
+              }
             >
               <Armchair />
               <span>{seat.id}</span>
@@ -1815,6 +1829,9 @@ function LiveSeatManager({ seats: liveSeats, reservations, notify }) {
                 <small className="seat-student-name">
                   {studentNames.join(", ")}
                 </small>
+              )}
+              {studyingReservations.length > 0 && (
+                <em className="seat-live-status">사용 중</em>
               )}
             </button>
           );
