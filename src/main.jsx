@@ -642,7 +642,7 @@ function StudentHome({ setPage, checkedIn, toggleCheck, studentName }) {
 
 function ApplyPage({ notify }) {
   const [day, setDay] = useState(0),
-    [slot, setSlot] = useState("2교시 · 17:20 – 18:40"),
+    [selectedPeriodIds, setSelectedPeriodIds] = useState([2]),
     [seat, setSeat] = useState(""),
     [studySettings, setStudySettings] = useState(null);
   useEffect(
@@ -660,9 +660,23 @@ function ApplyPage({ notify }) {
     (configuredSchedule[days[day].day] || []).includes(period.id),
   );
   useEffect(() => {
-    const first = availablePeriods[0];
-    if (first) setSlot(`${first.label} · ${first.start} – ${first.end}`);
+    const availableIds = availablePeriods.map((period) => period.id);
+    setSelectedPeriodIds((current) =>
+      current.filter((id) => availableIds.includes(id)),
+    );
   }, [day, studySettings]);
+  const selectedPeriods = availablePeriods.filter((period) =>
+    selectedPeriodIds.includes(period.id),
+  );
+  const selectedPeriodSummary = selectedPeriods
+    .map((period) => `${period.label} ${period.start}–${period.end}`)
+    .join(", ");
+  const togglePeriod = (periodId) =>
+    setSelectedPeriodIds((current) =>
+      current.includes(periodId)
+        ? current.filter((id) => id !== periodId)
+        : [...current, periodId].sort(),
+    );
   return (
     <div className="page">
       <div className="title-row">
@@ -683,6 +697,7 @@ function ApplyPage({ notify }) {
                 className={day === i ? "selected" : ""}
                 onClick={() => {
                   setDay(i);
+                  setSelectedPeriodIds([]);
                   setSeat("");
                 }}
                 key={d.date}
@@ -694,18 +709,17 @@ function ApplyPage({ notify }) {
             ))}
           </div>
           <h2>
-            <b className="step">2</b> 시간 선택
+            <b className="step">2</b> 교시 선택
+            <small className="multi-hint">복수 선택 가능</small>
           </h2>
           <div className="slot-list">
             {availablePeriods.map((period, i) => {
-              const value = `${period.label} · ${period.start} – ${period.end}`;
               return (
                 <button
-                  className={slot === value ? "selected" : ""}
-                  onClick={() => {
-                    setSlot(value);
-                    setSeat("");
-                  }}
+                  className={
+                    selectedPeriodIds.includes(period.id) ? "selected" : ""
+                  }
+                  onClick={() => togglePeriod(period.id)}
                   key={period.id}
                 >
                   <span>
@@ -752,12 +766,13 @@ function ApplyPage({ notify }) {
             {days[day].date}일 ({days[day].day})
           </span>
           <strong>
-            {slot} · {seat ? `${seat} 좌석` : "좌석을 선택해 주세요"}
+            {selectedPeriodSummary || "교시를 선택해 주세요"} ·{" "}
+            {seat ? `${seat} 좌석` : "좌석을 선택해 주세요"}
           </strong>
         </div>
         <button
           className="primary-button"
-          disabled={!seat}
+          disabled={!seat || selectedPeriodIds.length === 0}
           onClick={() => {
             notify(`${seat} 좌석으로 신청이 완료되었어요!`);
             setSeat("");

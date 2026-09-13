@@ -1585,6 +1585,15 @@ td {
   color: #178b63;
   font-size: 10px;
 }
+.multi-hint {
+  margin-left: 8px;
+  color: #1b9b6c;
+  background: #e7f7f0;
+  border-radius: 10px;
+  padding: 4px 7px;
+  font-size: 8px;
+  font-weight: 700;
+}
 .settings-card:nth-child(2) {
   grid-row: span 2;
 }
