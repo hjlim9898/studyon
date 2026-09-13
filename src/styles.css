@@ -717,6 +717,37 @@ header {
   gap: 14px;
   align-items: center;
 }
+.stat-clickable {
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform 0.18s,
+    border-color 0.18s,
+    box-shadow 0.18s;
+}
+.stat-clickable:hover {
+  transform: translateY(-2px);
+  border-color: #9ed9c2;
+  box-shadow: 0 8px 20px #1744380d;
+}
+.stat-clickable.selected {
+  border-color: #1ba673;
+  box-shadow: 0 0 0 2px #1ba67317;
+}
+.stat-clickable.selected:after {
+  content: "선택됨";
+  margin-left: auto;
+  align-self: flex-start;
+  background: #e5f7ef;
+  color: #14865f;
+  border-radius: 10px;
+  padding: 3px 6px;
+  font-size: 7px;
+  font-weight: 700;
+}
+.admin-panel#attendance-detail {
+  scroll-margin-top: 90px;
+}
 .stat .icon {
   width: 43px;
   height: 43px;

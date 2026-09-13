@@ -1384,7 +1384,13 @@ function TeacherConsole({ notify, page }) {
         .filter(
           (item) =>
             (item.name.includes(query) || item.no.includes(query)) &&
-            (filter === "전체" || item.status === filter),
+            (filter === "전체" ||
+              filter === "오늘 신청" ||
+              (filter === "현재 출석" &&
+                ["출석", "학습 중"].includes(item.status)) ||
+              (filter === "확인 필요" &&
+                ["신청", "지각", "결석"].includes(item.status)) ||
+              item.status === filter),
         ),
     [reservations, studentProfiles, query, filter],
   );
@@ -1395,6 +1401,17 @@ function TeacherConsole({ notify, page }) {
     } catch {
       notify("출결 상태를 변경하지 못했습니다.");
     }
+  };
+  const selectAttendanceMetric = (metric) => {
+    if (page !== "attendance") return;
+    setFilter(metric);
+    setTimeout(
+      () =>
+        document
+          .getElementById("attendance-detail")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      0,
+    );
   };
   const seed = async () => {
     setSeeding(true);
@@ -1482,7 +1499,11 @@ function TeacherConsole({ notify, page }) {
         </div>
       )}
       <div className="stats-grid teacher-stats">
-        <div className="stat">
+        <button
+          type="button"
+          className={`stat ${page === "attendance" ? "stat-clickable" : ""} ${filter === "오늘 신청" || (filter === "전체" && page === "attendance") ? "selected" : ""}`}
+          onClick={() => selectAttendanceMetric("오늘 신청")}
+        >
           <span className="icon mint">
             <Users />
           </span>
@@ -1493,8 +1514,12 @@ function TeacherConsole({ notify, page }) {
             </strong>
             <span>실시간 신청 현황</span>
           </div>
-        </div>
-        <div className="stat">
+        </button>
+        <button
+          type="button"
+          className={`stat ${page === "attendance" ? "stat-clickable" : ""} ${filter === "현재 출석" ? "selected" : ""}`}
+          onClick={() => selectAttendanceMetric("현재 출석")}
+        >
           <span className="icon blue">
             <ClipboardCheck />
           </span>
@@ -1509,8 +1534,12 @@ function TeacherConsole({ notify, page }) {
               %
             </span>
           </div>
-        </div>
-        <div className="stat">
+        </button>
+        <button
+          type="button"
+          className={`stat ${page === "attendance" ? "stat-clickable" : ""} ${filter === "학습 중" ? "selected" : ""}`}
+          onClick={() => selectAttendanceMetric("학습 중")}
+        >
           <span className="icon yellow">
             <Clock3 />
           </span>
@@ -1519,8 +1548,12 @@ function TeacherConsole({ notify, page }) {
             <strong>{studying}명</strong>
             <span>현재 학습실 이용</span>
           </div>
-        </div>
-        <div className="stat">
+        </button>
+        <button
+          type="button"
+          className={`stat ${page === "attendance" ? "stat-clickable" : ""} ${filter === "확인 필요" ? "selected" : ""}`}
+          onClick={() => selectAttendanceMetric("확인 필요")}
+        >
           <span className="icon red">
             <X />
           </span>
@@ -1529,7 +1562,7 @@ function TeacherConsole({ notify, page }) {
             <strong>{missing}명</strong>
             <span>미입실·지각·결석</span>
           </div>
-        </div>
+        </button>
       </div>
       {page === "admin" && (
         <ParticipationLeaderboard
@@ -1551,7 +1584,7 @@ function TeacherConsole({ notify, page }) {
           notify={notify}
         />
       ) : page === "attendance" ? (
-        <section className="panel admin-panel">
+        <section className="panel admin-panel" id="attendance-detail">
           <div className="section-head">
             <div>
               <h2>신청 및 출결 현황</h2>
@@ -1576,6 +1609,9 @@ function TeacherConsole({ notify, page }) {
                 onChange={(e) => setFilter(e.target.value)}
               >
                 <option>전체</option>
+                <option>오늘 신청</option>
+                <option>현재 출석</option>
+                <option>확인 필요</option>
                 <option>신청</option>
                 <option>학습 중</option>
                 <option>출석</option>
