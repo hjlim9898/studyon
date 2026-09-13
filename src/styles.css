@@ -1297,6 +1297,16 @@ header {
   font-size: 8px;
   margin-top: 2px;
 }
+.seat-map button small {
+  margin-top: 2px;
+  font-size: 7px;
+  font-weight: 800;
+}
+.seat-map button.reserved:disabled {
+  background: #fff4df;
+  border-color: #efd49d;
+  color: #b17a18;
+}
 .seat-map button:disabled {
   background: #edf1ef;
   color: #bec9c5;

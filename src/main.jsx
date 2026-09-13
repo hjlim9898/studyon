@@ -127,8 +127,8 @@ const initialStudents = [
     streak: 9,
   },
 ];
-const seats = Array.from({ length: 24 }, (_, i) => ({
-  id: `${String.fromCharCode(65 + Math.floor(i / 8))}-${String((i % 8) + 1).padStart(2, "0")}`,
+const seats = Array.from({ length: 40 }, (_, i) => ({
+  id: `${String.fromCharCode(65 + Math.floor(i / 10))}-${String((i % 10) + 1).padStart(2, "0")}`,
   taken: false,
 }));
 
@@ -751,6 +751,10 @@ function ApplyPage({ notify, user, profile }) {
     [],
   );
   const configuredPeriods = studySettings?.periods || standardPeriods;
+  const displaySeats = seats.slice(
+    0,
+    Math.max(1, Math.min(Number(studySettings?.capacity) || 40, seats.length)),
+  );
   const configuredSchedule =
     studySettings?.weeklySchedule || standardWeeklySchedule;
   const availablePeriods = configuredPeriods.filter((period) =>
@@ -792,10 +796,15 @@ function ApplyPage({ notify, user, profile }) {
       reservationLocks.some(
         (lock) =>
           lock.date === selectedDate &&
-          lock.periodId === periodId &&
+          String(lock.periodId) === String(periodId) &&
           lock.seatId === seatId,
       ),
     );
+  const remainingSeatsForPeriod = (periodId) =>
+    displaySeats.filter(
+      (seatOption) =>
+        !seatOption.taken && !isSeatReserved(seatOption.id, [periodId]),
+    ).length;
   useEffect(() => {
     if (seat && isSeatReserved(seat)) setSeat("");
   }, [seat, selectedDate, selectedPeriodIds, reservationLocks]);
@@ -951,7 +960,7 @@ function ApplyPage({ notify, user, profile }) {
             <small className="multi-hint">복수 선택 가능</small>
           </h2>
           <div className="slot-list">
-            {availablePeriods.map((period, i) => {
+            {availablePeriods.map((period) => {
               const alreadyReserved = alreadyReservedPeriodIds.includes(
                 period.id,
               );
@@ -984,7 +993,7 @@ function ApplyPage({ notify, user, profile }) {
                   <small>
                     {alreadyReserved
                       ? "이미 신청됨"
-                      : `${[17, 14, 11, 8][i]}석 남음`}
+                      : `${remainingSeatsForPeriod(period.id)}석 남음`}
                   </small>
                   <Check />
                 </button>
@@ -1000,12 +1009,12 @@ function ApplyPage({ notify, user, profile }) {
             <div className="legend">
               <i />
               선택 가능 <i className="taken" />
-              사용 중
+              예약됨
             </div>
           </div>
           <div className="board">교탁 · BOARD</div>
           <div className="seat-map">
-            {seats.map((s) => {
+            {displaySeats.map((s) => {
               const reserved = isSeatReserved(s.id);
               return (
                 <button
@@ -1136,7 +1145,7 @@ function ApplyPage({ notify, user, profile }) {
                                   </button>
                                 </div>
                                 <div>
-                                  {seats.map((seatOption) => (
+                                  {displaySeats.map((seatOption) => (
                                     <button
                                       className={
                                         assignedSeat === seatOption.id
@@ -1148,7 +1157,7 @@ function ApplyPage({ notify, user, profile }) {
                                         reservationLocks.some(
                                           (lock) =>
                                             lock.date === item.date &&
-                                            lock.periodId === period.id &&
+                                            String(lock.periodId) === String(period.id) &&
                                             lock.seatId === seatOption.id,
                                         )
                                       }
