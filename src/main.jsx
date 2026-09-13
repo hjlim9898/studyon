@@ -2035,7 +2035,6 @@ function App() {
     [profile, setProfile] = useState(null),
     [role, setRole] = useState("student"),
     [page, setPage] = useState("home"),
-    [checkedIn, setCheckedIn] = useState(false),
     [toast, setToast] = useState(""),
     [open, setOpen] = useState(false);
   useEffect(
@@ -2059,12 +2058,16 @@ function App() {
           setProfile(data);
           setRole(data.role === "teacher" ? "teacher" : "student");
           setPage(data.role === "teacher" ? "admin" : "home");
+          if (data.role !== "teacher") {
+            localStorage.removeItem("studyon_students");
+          }
         } catch {
           setProfile({
             name: current.displayName || current.email?.split("@")[0],
             role: "student",
           });
           setRole("student");
+          localStorage.removeItem("studyon_students");
         }
       }),
     [],
@@ -2089,7 +2092,7 @@ function App() {
         }
       />
     );
-  }, [role, page, checkedIn, profile, user]);
+  }, [role, page, profile, user]);
   if (user === undefined)
     return (
       <div className="app-loading">
