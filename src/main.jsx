@@ -139,16 +139,28 @@ function Toast({ message, onDone }) {
   );
 }
 
-function Logo() {
-  return (
-    <div className="logo">
+function Logo({ onClick }) {
+  const content = (
+    <>
       <span className="logo-mark">
         <Power />
       </span>
       <span>
         Study<b>ON</b>
       </span>
-    </div>
+    </>
+  );
+  return onClick ? (
+    <button
+      type="button"
+      className="logo logo-button"
+      onClick={onClick}
+      aria-label="초기화면으로 이동"
+    >
+      {content}
+    </button>
+  ) : (
+    <div className="logo">{content}</div>
   );
 }
 
@@ -178,7 +190,12 @@ function Sidebar({
   return (
     <>
       <div className={`sidebar ${open ? "open" : ""}`}>
-        <Logo />
+        <Logo
+          onClick={() => {
+            setPage(role === "teacher" ? "admin" : "home");
+            setOpen(false);
+          }}
+        />
         <button className="side-close" onClick={() => setOpen(false)}>
           <X />
         </button>
@@ -229,6 +246,7 @@ function Sidebar({
 }
 
 function Header({ role, setRole, setPage, setOpen, canManage, profile, user }) {
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   return (
     <header>
       <button className="menu" onClick={() => setOpen(true)}>
@@ -257,13 +275,39 @@ function Header({ role, setRole, setPage, setOpen, canManage, profile, user }) {
         </div>
       )}
       <div className="header-right">
-        <button className="bell">
+        <button
+          className="bell"
+          aria-label="알림 보기"
+          onClick={() => setNotificationsOpen((value) => !value)}
+        >
           <Bell />
-          <i />
         </button>
-        <div className="header-avatar">
+        {notificationsOpen && (
+          <div className="notification-popover">
+            <div>
+              <b>알림</b>
+              <button onClick={() => setNotificationsOpen(false)}>
+                <X />
+              </button>
+            </div>
+            <span className="notification-empty">
+              <Bell />
+              <b>새로운 알림이 없습니다</b>
+              <small>신청 및 출결 변경 알림이 여기에 표시됩니다.</small>
+            </span>
+          </div>
+        )}
+        <button
+          className="header-avatar"
+          aria-label="마이페이지로 이동"
+          title="마이페이지"
+          onClick={() => {
+            setPage("mypage");
+            setNotificationsOpen(false);
+          }}
+        >
           {(profile?.name || user?.email || "U")[0]}
-        </div>
+        </button>
       </div>
     </header>
   );
@@ -2143,6 +2187,111 @@ function EmptyRewardsPage() {
   );
 }
 
+function MyPage({ user, profile, setProfile, notify, onLogout }) {
+  const [form, setForm] = useState({
+    name: profile?.name || user.displayName || "",
+    studentNumber: profile?.studentNumber || "",
+    className: profile?.className || "",
+  });
+  const [saving, setSaving] = useState(false);
+  const save = async (event) => {
+    event.preventDefault();
+    setSaving(true);
+    try {
+      await updateStudent(user.uid, form);
+      await updateProfile(user, { displayName: form.name });
+      setProfile((current) => ({ ...current, ...form }));
+      notify("내 정보를 저장했습니다.");
+    } catch {
+      notify("정보를 저장하지 못했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="page">
+      <div className="title-row">
+        <div>
+          <span className="eyebrow">MY PAGE</span>
+          <h1>마이페이지</h1>
+          <p>계정과 기본 정보를 확인하고 관리합니다.</p>
+        </div>
+      </div>
+      <div className="mypage-grid">
+        <section className="panel profile-summary">
+          <div className="profile-large">
+            {(form.name || user.email || "U")[0]}
+          </div>
+          <h2>{form.name || "StudyON 사용자"}</h2>
+          <span>{profile?.role === "teacher" ? "교사 · 관리자" : "학생"}</span>
+          <p>{user.email}</p>
+          <button className="outline-button" onClick={onLogout}>
+            <LogOut /> 로그아웃
+          </button>
+        </section>
+        <form className="panel profile-form" onSubmit={save}>
+          <div className="settings-title">
+            <span className="icon mint">
+              <Users />
+            </span>
+            <div>
+              <h2>기본 정보</h2>
+              <p>StudyON에서 사용하는 프로필 정보입니다.</p>
+            </div>
+          </div>
+          <label>
+            이름
+            <input
+              value={form.name}
+              onChange={(e) =>
+                setForm((current) => ({ ...current, name: e.target.value }))
+              }
+              required
+            />
+          </label>
+          {profile?.role !== "teacher" && (
+            <label>
+              학번
+              <input
+                value={form.studentNumber}
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    studentNumber: e.target.value,
+                  }))
+                }
+              />
+            </label>
+          )}
+          <label>
+            {profile?.role === "teacher" ? "소속" : "학급"}
+            <input
+              value={form.className}
+              onChange={(e) =>
+                setForm((current) => ({
+                  ...current,
+                  className: e.target.value,
+                }))
+              }
+              placeholder={
+                profile?.role === "teacher" ? "예: 2학년부" : "예: 2학년 1반"
+              }
+            />
+          </label>
+          <label>
+            이메일
+            <input value={user.email || ""} disabled />
+            <small>이메일 변경은 학교 관리자에게 문의해 주세요.</small>
+          </label>
+          <button className="primary-button profile-save" disabled={saving}>
+            <Check /> {saving ? "저장 중..." : "변경사항 저장"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [user, setUser] = useState(undefined),
     [profile, setProfile] = useState(null),
@@ -2187,6 +2336,16 @@ function App() {
   );
   const notify = (m) => setToast(m);
   const content = useMemo(() => {
+    if (page === "mypage")
+      return (
+        <MyPage
+          user={user}
+          profile={profile}
+          setProfile={setProfile}
+          notify={notify}
+          onLogout={() => signOut(auth)}
+        />
+      );
     if (role === "teacher" && page === "settings")
       return <OperationsSettings notify={notify} />;
     if (role === "teacher")

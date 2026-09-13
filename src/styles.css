@@ -48,6 +48,20 @@ select {
 .logo b {
   color: #45d49a;
 }
+.logo-button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.logo-button:hover .logo-mark {
+  transform: scale(1.06);
+}
+.logo-mark {
+  transition: transform 0.18s;
+}
 .logo-mark {
   height: 31px;
   width: 31px;
@@ -177,6 +191,161 @@ header {
   display: flex;
   gap: 18px;
   align-items: center;
+}
+.header-right {
+  position: relative;
+}
+.header-avatar {
+  border: 0;
+  cursor: pointer;
+}
+.header-avatar:hover {
+  box-shadow: 0 0 0 3px #1aa57220;
+}
+.notification-popover {
+  position: absolute;
+  right: 48px;
+  top: 43px;
+  width: 300px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  box-shadow: 0 14px 40px #173c3326;
+  z-index: 30;
+  overflow: hidden;
+}
+.notification-popover > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #edf1ef;
+  font-size: 12px;
+}
+.notification-popover > div button {
+  border: 0;
+  background: transparent;
+  color: #87958f;
+  cursor: pointer;
+}
+.notification-popover > div svg {
+  width: 15px;
+}
+.notification-empty {
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  color: #87958f;
+}
+.notification-empty > svg {
+  width: 28px;
+  margin-bottom: 10px;
+  color: #4cb58e;
+}
+.notification-empty b {
+  font-size: 11px;
+  color: #49615a;
+}
+.notification-empty small {
+  font-size: 9px;
+  margin-top: 5px;
+}
+.mypage-grid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 18px;
+  max-width: 850px;
+}
+.profile-summary {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.profile-large {
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #d9f6e9, #bcebd8);
+  color: #16865f;
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  font-weight: 800;
+  margin: 10px 0 15px;
+}
+.profile-summary h2 {
+  font-size: 18px;
+  margin: 0 0 6px;
+}
+.profile-summary > span {
+  font-size: 9px;
+  color: #178c64;
+  background: #e7f7f0;
+  padding: 4px 9px;
+  border-radius: 12px;
+}
+.profile-summary > p {
+  font-size: 10px;
+  color: #899691;
+  margin: 12px 0 25px;
+}
+.profile-summary .outline-button {
+  margin: 0;
+  width: 100%;
+  justify-content: center;
+}
+.profile-summary .outline-button svg {
+  width: 14px;
+}
+.profile-form > label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #405a53;
+  margin-bottom: 14px;
+}
+.profile-form input {
+  border: 1px solid #dce5e1;
+  border-radius: 9px;
+  padding: 11px 12px;
+  outline: none;
+  background: #fbfcfc;
+  color: #28473e;
+}
+.profile-form input:focus {
+  border-color: #1aaa74;
+}
+.profile-form input:disabled {
+  color: #8b9894;
+  background: #f0f3f2;
+}
+.profile-form label small {
+  font-size: 8px;
+  color: #95a09d;
+  font-weight: 400;
+}
+.profile-save {
+  margin: 22px 0 0 auto;
+}
+@media (max-width: 760px) {
+  .notification-popover {
+    right: 0;
+    top: 46px;
+    width: min(300px, calc(100vw - 32px));
+  }
+  .mypage-grid {
+    grid-template-columns: 1fr;
+  }
+  .profile-summary {
+    padding-bottom: 22px;
+  }
 }
 .bell {
   position: relative;
