@@ -835,28 +835,46 @@ function ApplyPage({ notify, user, profile }) {
       .map((period) => `${period.label} ${period.start}–${period.end}`)
       .join(", ");
     try {
-      await cancelReservationPeriod(reservation.id, periodId, remainingSummary);
+      await cancelReservationPeriod(
+        reservation.id,
+        periodId,
+        remainingSummary,
+        getReservationPeriods(reservation).map((period) => period.id),
+      );
       setEditingPeriod(null);
       notify(
         remaining.length
           ? "선택한 교시 신청을 취소했습니다."
           : "전체 신청을 취소했습니다.",
       );
-    } catch {
-      notify("교시 신청을 취소하지 못했습니다.");
+    } catch (error) {
+      const message =
+        error.code === "permission-denied"
+          ? "Firestore 규칙을 최신 버전으로 배포한 후 다시 시도해 주세요."
+          : "교시 신청을 취소하지 못했습니다.";
+      setReservationError(message);
+      notify(message);
     }
   };
   const changePeriodSeat = async (reservation, periodId, newSeatId) => {
     try {
-      await changeReservationPeriodSeat(reservation.id, periodId, newSeatId);
+      await changeReservationPeriodSeat(
+        reservation.id,
+        periodId,
+        newSeatId,
+        getReservationPeriods(reservation).map((period) => period.id),
+      );
       setEditingPeriod(null);
       notify(`${newSeatId} 좌석으로 변경했습니다.`);
     } catch (error) {
-      notify(
+      const message =
         error.message === "SEAT_TIME_CONFLICT"
           ? "이미 다른 학생이 신청한 좌석입니다."
-          : "좌석을 변경하지 못했습니다.",
-      );
+          : error.code === "permission-denied"
+            ? "Firestore 규칙을 최신 버전으로 배포한 후 다시 시도해 주세요."
+            : "좌석을 변경하지 못했습니다.";
+      setReservationError(message);
+      notify(message);
     }
   };
   return (

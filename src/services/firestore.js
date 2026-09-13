@@ -133,7 +133,12 @@ export async function createStudyReservation(data) {
   });
 }
 
-export async function cancelReservationPeriod(id, periodId, remainingTimeSlot) {
+export async function cancelReservationPeriod(
+  id,
+  periodId,
+  remainingTimeSlot,
+  knownPeriodIds = [],
+) {
   const reservationRef = doc(db, "reservations", id);
   await runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(reservationRef);
@@ -142,7 +147,10 @@ export async function cancelReservationPeriod(id, periodId, remainingTimeSlot) {
     const periodKey = String(periodId);
     const seatId =
       reservation.seatAssignments?.[periodKey] || reservation.seatId;
-    const remainingPeriodIds = (reservation.periodIds || []).filter(
+    const sourcePeriodIds = reservation.periodIds?.length
+      ? reservation.periodIds
+      : knownPeriodIds;
+    const remainingPeriodIds = sourcePeriodIds.filter(
       (idValue) => idValue !== periodId,
     );
     transaction.delete(
@@ -170,7 +178,12 @@ export async function cancelReservationPeriod(id, periodId, remainingTimeSlot) {
   });
 }
 
-export async function changeReservationPeriodSeat(id, periodId, newSeatId) {
+export async function changeReservationPeriodSeat(
+  id,
+  periodId,
+  newSeatId,
+  knownPeriodIds = [],
+) {
   const reservationRef = doc(db, "reservations", id);
   await runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(reservationRef);
@@ -194,16 +207,20 @@ export async function changeReservationPeriodSeat(id, periodId, newSeatId) {
         `${reservation.date}_${periodId}_${oldSeatId}`,
       ),
     );
+    const sourcePeriodIds = reservation.periodIds?.length
+      ? reservation.periodIds
+      : knownPeriodIds;
     const seatAssignments = {
+      ...Object.fromEntries(
+        sourcePeriodIds.map((idValue) => [String(idValue), reservation.seatId]),
+      ),
       ...(reservation.seatAssignments || {}),
       [periodKey]: newSeatId,
     };
     transaction.update(reservationRef, {
+      periodIds: sourcePeriodIds,
       seatAssignments,
-      seatId:
-        reservation.periodIds?.[0] === periodId
-          ? newSeatId
-          : reservation.seatId,
+      seatId: sourcePeriodIds[0] === periodId ? newSeatId : reservation.seatId,
       updatedAt: serverTimestamp(),
     });
     transaction.set(newLockRef, {
