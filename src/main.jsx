@@ -1049,7 +1049,7 @@ function ApplyPage({ notify, user, profile }) {
                                 <Armchair /> {assignedSeat}
                               </em>
                             </div>
-                            {item.attendanceStatus === "신청" && (
+                            {item.status !== "cancelled" && (
                               <div className="period-actions">
                                 <button
                                   onClick={() => {
