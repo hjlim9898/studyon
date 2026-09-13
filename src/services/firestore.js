@@ -1,11 +1,14 @@
 import {
+  addDoc,
   collection,
   doc,
   onSnapshot,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
   writeBatch,
+  where,
 } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -43,6 +46,40 @@ export async function saveStudySettings(settings) {
 export async function updateReservationStatus(id, status) {
   await updateDoc(doc(db, "reservations", id), {
     attendanceStatus: status,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export function subscribeMyReservations(userId, onData, onError) {
+  const ownReservations = query(
+    collection(db, "reservations"),
+    where("studentId", "==", userId),
+  );
+  return onSnapshot(
+    ownReservations,
+    (snapshot) => {
+      const items = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+      items.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+      onData(items);
+    },
+    onError,
+  );
+}
+
+export async function createStudyReservation(data) {
+  return addDoc(collection(db, "reservations"), {
+    ...data,
+    status: "applied",
+    attendanceStatus: "신청",
+    studyMinutes: 0,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function cancelStudyReservation(id) {
+  await updateDoc(doc(db, "reservations", id), {
+    status: "cancelled",
     updatedAt: serverTimestamp(),
   });
 }

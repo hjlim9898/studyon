@@ -36,9 +36,12 @@ import {
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import {
+  cancelStudyReservation,
+  createStudyReservation,
   saveStudySettings,
   seedStudyRoom,
   subscribeStudySettings,
+  subscribeMyReservations,
   subscribeToCollection,
   updateReservationStatus,
   updateSeat,
@@ -640,11 +643,14 @@ function StudentHome({ setPage, checkedIn, toggleCheck, studentName }) {
   );
 }
 
-function ApplyPage({ notify }) {
+function ApplyPage({ notify, user, profile }) {
   const [day, setDay] = useState(0),
     [selectedPeriodIds, setSelectedPeriodIds] = useState([2]),
     [seat, setSeat] = useState(""),
-    [studySettings, setStudySettings] = useState(null);
+    [studySettings, setStudySettings] = useState(null),
+    [myReservations, setMyReservations] = useState([]),
+    [submitting, setSubmitting] = useState(false),
+    [reservationError, setReservationError] = useState("");
   useEffect(
     () =>
       subscribeStudySettings(
@@ -652,6 +658,15 @@ function ApplyPage({ notify }) {
         () => {},
       ),
     [],
+  );
+  useEffect(
+    () =>
+      subscribeMyReservations(user.uid, setMyReservations, () =>
+        setReservationError(
+          "신청 내역을 불러오지 못했습니다. Firestore 규칙을 확인해 주세요.",
+        ),
+      ),
+    [user.uid],
   );
   const configuredPeriods = studySettings?.periods || standardPeriods;
   const configuredSchedule =
@@ -677,6 +692,43 @@ function ApplyPage({ notify }) {
         ? current.filter((id) => id !== periodId)
         : [...current, periodId].sort(),
     );
+  const submitReservation = async () => {
+    if (!seat || !selectedPeriods.length) return;
+    setSubmitting(true);
+    setReservationError("");
+    try {
+      await createStudyReservation({
+        studentId: user.uid,
+        studentName:
+          profile?.name ||
+          user.displayName ||
+          user.email?.split("@")[0] ||
+          "학생",
+        studentNumber: profile?.studentNumber || "",
+        date: `2026-09-${days[day].date}`,
+        day: days[day].day,
+        periodIds: selectedPeriods.map((period) => period.id),
+        timeSlot: selectedPeriodSummary,
+        seatId: seat,
+      });
+      notify(`${seat} 좌석으로 신청이 완료되었어요!`);
+      setSeat("");
+    } catch {
+      setReservationError(
+        "신청을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  const cancelReservation = async (reservation) => {
+    try {
+      await cancelStudyReservation(reservation.id);
+      notify("자율학습 신청을 취소했습니다.");
+    } catch {
+      notify("신청을 취소하지 못했습니다.");
+    }
+  };
   return (
     <div className="page">
       <div className="title-row">
@@ -772,15 +824,76 @@ function ApplyPage({ notify }) {
         </div>
         <button
           className="primary-button"
-          disabled={!seat || selectedPeriodIds.length === 0}
-          onClick={() => {
-            notify(`${seat} 좌석으로 신청이 완료되었어요!`);
-            setSeat("");
-          }}
+          disabled={!seat || selectedPeriodIds.length === 0 || submitting}
+          onClick={submitReservation}
         >
-          이 일정으로 신청하기
+          {submitting ? "신청 중..." : "이 일정으로 신청하기"}
         </button>
       </div>
+      <section className="my-reservations">
+        <div className="section-head">
+          <div>
+            <span className="eyebrow">MY RESERVATIONS</span>
+            <h2>나의 신청 내역</h2>
+          </div>
+          <span className="reservation-count">
+            {
+              myReservations.filter((item) => item.status !== "cancelled")
+                .length
+            }
+            건
+          </span>
+        </div>
+        {reservationError && (
+          <div className="db-banner">
+            <strong>신청 내역 확인</strong>
+            <span>{reservationError}</span>
+          </div>
+        )}
+        <div className="reservation-list">
+          {myReservations.length ? (
+            myReservations.map((item) => (
+              <article
+                className={`reservation-card ${item.status === "cancelled" ? "cancelled" : ""}`}
+                key={item.id}
+              >
+                <div className="reservation-date">
+                  <b>{item.date?.slice(8)}일</b>
+                  <span>{item.day || ""}요일</span>
+                </div>
+                <div className="reservation-info">
+                  <span className="reservation-status">
+                    {item.status === "cancelled"
+                      ? "신청 취소"
+                      : item.attendanceStatus || "신청 완료"}
+                  </span>
+                  <h3>{item.timeSlot}</h3>
+                  <p>
+                    <Armchair /> {item.seatId} 좌석
+                  </p>
+                </div>
+                {item.status !== "cancelled" &&
+                  item.attendanceStatus === "신청" && (
+                    <button
+                      className="cancel-button"
+                      onClick={() => cancelReservation(item)}
+                    >
+                      신청 취소
+                    </button>
+                  )}
+              </article>
+            ))
+          ) : (
+            <div className="panel student-empty compact">
+              <span className="empty-illustration">
+                <CalendarDays />
+              </span>
+              <h2>아직 신청한 일정이 없습니다</h2>
+              <p>위에서 원하는 날짜와 교시, 좌석을 선택해 주세요.</p>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
@@ -2078,7 +2191,8 @@ function App() {
       return <OperationsSettings notify={notify} />;
     if (role === "teacher")
       return <TeacherConsole notify={notify} page={page} />;
-    if (page === "apply") return <ApplyPage notify={notify} />;
+    if (page === "apply")
+      return <ApplyPage notify={notify} user={user} profile={profile} />;
     if (page === "records") return <EmptyRecordsPage />;
     if (page === "rewards") return <EmptyRewardsPage />;
     return (

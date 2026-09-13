@@ -1627,6 +1627,116 @@ td {
   font-size: 8px;
   font-weight: 700;
 }
+.my-reservations {
+  margin-top: 38px;
+}
+.reservation-count {
+  font-size: 10px;
+  color: #198e66;
+  background: #e5f7ef;
+  padding: 5px 9px;
+  border-radius: 12px;
+}
+.reservation-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.reservation-card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 17px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.reservation-date {
+  width: 55px;
+  height: 55px;
+  border-radius: 11px;
+  background: #e8f7f0;
+  color: #168e64;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.reservation-date b {
+  font-size: 15px;
+}
+.reservation-date span {
+  font-size: 8px;
+}
+.reservation-info {
+  min-width: 0;
+}
+.reservation-status {
+  font-size: 8px;
+  color: #168e64;
+  background: #e5f7ef;
+  border-radius: 10px;
+  padding: 3px 6px;
+}
+.reservation-info h3 {
+  font-size: 11px;
+  margin: 7px 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.reservation-info p {
+  font-size: 9px;
+  color: #7f908a;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.reservation-info p svg {
+  width: 12px;
+}
+.cancel-button {
+  margin-left: auto;
+  border: 1px solid #eadedb;
+  background: white;
+  color: #b56355;
+  border-radius: 8px;
+  padding: 7px 9px;
+  font-size: 9px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.reservation-card.cancelled {
+  opacity: 0.55;
+}
+.reservation-card.cancelled .reservation-date {
+  background: #eef1f0;
+  color: #82908c;
+}
+.student-empty.compact {
+  grid-column: 1/-1;
+  min-height: 210px;
+}
+.student-empty.compact .empty-illustration {
+  width: 50px;
+  height: 50px;
+}
+.student-empty.compact .empty-illustration svg {
+  width: 22px;
+}
+@media (max-width: 760px) {
+  .reservation-list {
+    grid-template-columns: 1fr;
+  }
+  .reservation-card {
+    padding: 14px;
+  }
+  .reservation-info h3 {
+    white-space: normal;
+  }
+}
 .settings-card:nth-child(2) {
   grid-row: span 2;
 }
