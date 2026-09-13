@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CalendarDays, LayoutDashboard, Armchair, Clock3, Trophy, LogOut, Bell, ChevronRight, Flame, Target, Star, Check, X, Users, Search, Settings, ClipboardCheck, Menu, Power, Sparkles, Medal, BookOpen, TrendingUp } from 'lucide-react';
+import './firebase';
 import './styles.css';
 
 const days = [

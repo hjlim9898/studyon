@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
+    "firebase": "^12.2.1",
     "vite": "latest",
     "react": "latest",
     "react-dom": "latest",
