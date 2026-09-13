@@ -62,7 +62,15 @@ export function subscribeMyReservations(userId, onData, onError) {
         id: item.id,
         ...item.data(),
       }));
-      items.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+      items.sort((a, b) => {
+        const aCancelled = a.status === "cancelled" ? 1 : 0;
+        const bCancelled = b.status === "cancelled" ? 1 : 0;
+        return (
+          aCancelled - bCancelled ||
+          (b.date || "").localeCompare(a.date || "") ||
+          (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)
+        );
+      });
       onData(items);
     },
     onError,

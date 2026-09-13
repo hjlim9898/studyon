@@ -1170,6 +1170,23 @@ header {
 .slot-list button.selected > svg {
   opacity: 1;
 }
+.slot-list button.already-reserved {
+  background: #f0f3f2;
+  border-color: #dce4e1;
+  color: #8a9893;
+  cursor: not-allowed;
+}
+.slot-list button.already-reserved small {
+  color: #168a63;
+  font-weight: 700;
+}
+.slot-list button.already-reserved > svg {
+  opacity: 1;
+  color: #7f918b;
+}
+.slot-list button.already-reserved span b {
+  color: #71827c;
+}
 .legend {
   font-size: 9px;
   color: #84928e;

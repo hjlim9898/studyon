@@ -718,12 +718,32 @@ function ApplyPage({ notify, user, profile }) {
   const availablePeriods = configuredPeriods.filter((period) =>
     (configuredSchedule[days[day].day] || []).includes(period.id),
   );
+  const selectedDate = `2026-09-${days[day].date}`;
+  const alreadyReservedPeriodIds = [
+    ...new Set(
+      myReservations
+        .filter(
+          (reservation) =>
+            reservation.date === selectedDate &&
+            reservation.status !== "cancelled",
+        )
+        .flatMap((reservation) => {
+          if (reservation.periodIds?.length) return reservation.periodIds;
+          return configuredPeriods
+            .filter((period) => reservation.timeSlot?.includes(period.label))
+            .map((period) => period.id);
+        }),
+    ),
+  ];
   useEffect(() => {
     const availableIds = availablePeriods.map((period) => period.id);
     setSelectedPeriodIds((current) =>
-      current.filter((id) => availableIds.includes(id)),
+      current.filter(
+        (id) =>
+          availableIds.includes(id) && !alreadyReservedPeriodIds.includes(id),
+      ),
     );
-  }, [day, studySettings]);
+  }, [day, studySettings, myReservations]);
   const selectedPeriods = availablePeriods.filter((period) =>
     selectedPeriodIds.includes(period.id),
   );
@@ -749,7 +769,7 @@ function ApplyPage({ notify, user, profile }) {
           user.email?.split("@")[0] ||
           "학생",
         studentNumber: profile?.studentNumber || "",
-        date: `2026-09-${days[day].date}`,
+        date: selectedDate,
         day: days[day].day,
         periodIds: selectedPeriods.map((period) => period.id),
         timeSlot: selectedPeriodSummary,
@@ -820,11 +840,19 @@ function ApplyPage({ notify, user, profile }) {
           </h2>
           <div className="slot-list">
             {availablePeriods.map((period, i) => {
+              const alreadyReserved = alreadyReservedPeriodIds.includes(
+                period.id,
+              );
               return (
                 <button
                   className={
-                    selectedPeriodIds.includes(period.id) ? "selected" : ""
+                    alreadyReserved
+                      ? "already-reserved"
+                      : selectedPeriodIds.includes(period.id)
+                        ? "selected"
+                        : ""
                   }
+                  disabled={alreadyReserved}
                   onClick={() => togglePeriod(period.id)}
                   key={period.id}
                 >
@@ -832,7 +860,11 @@ function ApplyPage({ notify, user, profile }) {
                     <Clock3 />
                     <b>{period.label}</b> {period.start} – {period.end}
                   </span>
-                  <small>{[17, 14, 11, 8][i]}석 남음</small>
+                  <small>
+                    {alreadyReserved
+                      ? "신청 완료"
+                      : `${[17, 14, 11, 8][i]}석 남음`}
+                  </small>
                   <Check />
                 </button>
               );
