@@ -1893,6 +1893,72 @@ const defaultSettings = {
   attendancePoints: 10,
   applicationsOpen: true,
   autoCheckout: true,
+  rewardPolicies: [
+    {
+      id: "streak5",
+      name: "출석 스트릭",
+      condition: "5일 연속 참여",
+      reward: "연속학습 배지 + 50P",
+      points: 50,
+      enabled: true,
+    },
+    {
+      id: "monthly15",
+      name: "이달의 꾸준이",
+      condition: "월 15회 이상 참여",
+      reward: "특별 배지 + 150P",
+      points: 150,
+      enabled: true,
+    },
+    {
+      id: "monthlyGoal",
+      name: "목표 달성",
+      condition: "월 목표 학습시간 달성",
+      reward: "100P",
+      points: 100,
+      enabled: true,
+    },
+    {
+      id: "perfectAttendance",
+      name: "성실 출석",
+      condition: "신청 후 지각·무단결석 없이 참여",
+      reward: "성실 포인트 50P",
+      points: 50,
+      enabled: true,
+    },
+    {
+      id: "firstStudy",
+      name: "첫 도전",
+      condition: "처음 자율학습 참여",
+      reward: "30P",
+      points: 30,
+      enabled: true,
+    },
+    {
+      id: "perfectWeek",
+      name: "퍼펙트 위크",
+      condition: "일주일 신청 일정 모두 참여",
+      reward: "70P",
+      points: 70,
+      enabled: true,
+    },
+    {
+      id: "studyonChallenge",
+      name: "StudyON 챌린지",
+      condition: "일정 기간 목표 달성",
+      reward: "추첨권 또는 특별 배지",
+      points: 0,
+      enabled: true,
+    },
+    {
+      id: "classTogether",
+      name: "함께 공부하기",
+      condition: "학급 전체 목표 달성",
+      reward: "학급 공동 보상",
+      points: 0,
+      enabled: true,
+    },
+  ],
 };
 
 function OperationsSettings({ notify }) {
@@ -1934,6 +2000,15 @@ function OperationsSettings({ notify }) {
         : [...current, periodId].sort(),
     });
   };
+  const toggleRewardPolicy = (policyId) =>
+    change(
+      "rewardPolicies",
+      form.rewardPolicies.map((policy) =>
+        policy.id === policyId
+          ? { ...policy, enabled: !policy.enabled }
+          : policy,
+      ),
+    );
   const save = async (event) => {
     event.preventDefault();
     setSaving(true);
@@ -2133,6 +2208,42 @@ function OperationsSettings({ notify }) {
             />
             <i />
           </label>
+        </section>
+        <section className="panel settings-card reward-policy-card">
+          <div className="settings-title">
+            <span className="icon yellow">
+              <Trophy />
+            </span>
+            <div>
+              <h2>포인트 및 배지 지급 기준</h2>
+              <p>학생 참여에 적용할 공식 보상 정책입니다.</p>
+            </div>
+          </div>
+          <div className="policy-list">
+            {form.rewardPolicies.map((policy) => (
+              <div
+                className={!policy.enabled ? "disabled" : ""}
+                key={policy.id}
+              >
+                <span className="policy-symbol">
+                  {policy.points ? `${policy.points}P` : <Trophy />}
+                </span>
+                <div>
+                  <b>{policy.name}</b>
+                  <small>{policy.condition}</small>
+                </div>
+                <strong>{policy.reward}</strong>
+                <label className="mini-switch">
+                  <input
+                    type="checkbox"
+                    checked={policy.enabled}
+                    onChange={() => toggleRewardPolicy(policy.id)}
+                  />
+                  <i />
+                </label>
+              </div>
+            ))}
+          </div>
         </section>
         <div className="settings-actions">
           <span>
