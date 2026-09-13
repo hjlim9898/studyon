@@ -1,9 +1,9 @@
 import {
-  addDoc,
   collection,
   doc,
   onSnapshot,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -58,7 +58,10 @@ export function subscribeMyReservations(userId, onData, onError) {
   return onSnapshot(
     ownReservations,
     (snapshot) => {
-      const items = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+      const items = snapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }));
       items.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
       onData(items);
     },
@@ -67,20 +70,83 @@ export function subscribeMyReservations(userId, onData, onError) {
 }
 
 export async function createStudyReservation(data) {
-  return addDoc(collection(db, "reservations"), {
-    ...data,
-    status: "applied",
-    attendanceStatus: "신청",
-    studyMinutes: 0,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+  const reservationRef = doc(collection(db, "reservations"));
+  const periodIds = data.periodIds || [];
+  const seatLockRefs = periodIds.map((periodId) =>
+    doc(db, "reservationLocks", `${data.date}_${periodId}_${data.seatId}`),
+  );
+  const studentLockRefs = periodIds.map((periodId) =>
+    doc(
+      db,
+      "studentReservationLocks",
+      `${data.studentId}_${data.date}_${periodId}`,
+    ),
+  );
+
+  return runTransaction(db, async (transaction) => {
+    const seatLocks = await Promise.all(
+      seatLockRefs.map((reference) => transaction.get(reference)),
+    );
+    const studentLocks = await Promise.all(
+      studentLockRefs.map((reference) => transaction.get(reference)),
+    );
+    if (studentLocks.some((snapshot) => snapshot.exists())) {
+      throw new Error("STUDENT_TIME_CONFLICT");
+    }
+    if (seatLocks.some((snapshot) => snapshot.exists())) {
+      throw new Error("SEAT_TIME_CONFLICT");
+    }
+
+    transaction.set(reservationRef, {
+      ...data,
+      status: "applied",
+      attendanceStatus: "신청",
+      studyMinutes: 0,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    periodIds.forEach((periodId, index) => {
+      const lockData = {
+        reservationId: reservationRef.id,
+        studentId: data.studentId,
+        date: data.date,
+        periodId,
+        seatId: data.seatId,
+        createdAt: serverTimestamp(),
+      };
+      transaction.set(seatLockRefs[index], lockData);
+      transaction.set(studentLockRefs[index], lockData);
+    });
+    return reservationRef;
   });
 }
 
 export async function cancelStudyReservation(id) {
-  await updateDoc(doc(db, "reservations", id), {
-    status: "cancelled",
-    updatedAt: serverTimestamp(),
+  const reservationRef = doc(db, "reservations", id);
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(reservationRef);
+    if (!snapshot.exists()) throw new Error("RESERVATION_NOT_FOUND");
+    const reservation = snapshot.data();
+    (reservation.periodIds || []).forEach((periodId) => {
+      transaction.delete(
+        doc(
+          db,
+          "reservationLocks",
+          `${reservation.date}_${periodId}_${reservation.seatId}`,
+        ),
+      );
+      transaction.delete(
+        doc(
+          db,
+          "studentReservationLocks",
+          `${reservation.studentId}_${reservation.date}_${periodId}`,
+        ),
+      );
+    });
+    transaction.update(reservationRef, {
+      status: "cancelled",
+      updatedAt: serverTimestamp(),
+    });
   });
 }
 

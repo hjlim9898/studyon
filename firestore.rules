@@ -69,6 +69,33 @@ service cloud.firestore {
         || (signedIn() && resource.data.studentId == request.auth.uid);
     }
 
+    // 날짜·교시·좌석 조합을 원자적으로 잠가 동시 중복 신청을 방지합니다.
+    match /reservationLocks/{lockId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.studentId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.studentId == request.auth.uid
+        && request.resource.data.date == getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.date
+        && request.resource.data.seatId == getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.seatId
+        && request.resource.data.periodId in getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.periodIds;
+      allow delete: if isTeacher()
+        || (signedIn() && resource.data.studentId == request.auth.uid);
+      allow update: if false;
+    }
+
+    // 학생·날짜·교시 조합도 잠가 다른 좌석으로의 중복 신청을 방지합니다.
+    match /studentReservationLocks/{lockId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.studentId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.studentId == request.auth.uid
+        && request.resource.data.date == getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.date
+        && request.resource.data.periodId in getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.periodIds;
+      allow delete: if isTeacher()
+        || (signedIn() && resource.data.studentId == request.auth.uid);
+      allow update: if false;
+    }
+
     // 좌석 현황은 로그인 사용자 모두가 보고, 교사만 수정합니다.
     match /seats/{seatId} {
       allow read: if signedIn();

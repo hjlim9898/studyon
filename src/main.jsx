@@ -757,10 +757,20 @@ function ApplyPage({ notify, user, profile }) {
       });
       notify(`${seat} 좌석으로 신청이 완료되었어요!`);
       setSeat("");
-    } catch {
-      setReservationError(
-        "신청을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.",
-      );
+    } catch (error) {
+      if (error.message === "STUDENT_TIME_CONFLICT") {
+        setReservationError(
+          "이미 신청한 교시가 포함되어 있습니다. 기존 신청 내역을 확인해 주세요.",
+        );
+      } else if (error.message === "SEAT_TIME_CONFLICT") {
+        setReservationError(
+          "선택한 교시에 이미 다른 학생이 예약한 좌석입니다. 다른 좌석을 선택해 주세요.",
+        );
+      } else {
+        setReservationError(
+          "신청을 저장하지 못했습니다. Firestore 규칙과 네트워크를 확인해 주세요.",
+        );
+      }
     } finally {
       setSubmitting(false);
     }
