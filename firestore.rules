@@ -76,7 +76,11 @@ service cloud.firestore {
         || (signedIn()
           && resource.data.studentId == request.auth.uid
           && validReservation()
-          && request.resource.data.studentId == resource.data.studentId);
+          && request.resource.data.studentId == resource.data.studentId
+          && request.resource.data.attendanceStatus == resource.data.attendanceStatus
+          && request.resource.data.studyMinutes == resource.data.studyMinutes
+          && request.resource.data.get('attendanceByPeriod', {})
+            == resource.data.get('attendanceByPeriod', {}));
       allow delete: if isTeacher()
         || (signedIn() && resource.data.studentId == request.auth.uid);
     }

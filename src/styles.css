@@ -1597,6 +1597,29 @@ header {
   width: 14px;
   color: #81908c;
 }
+.reservation-time-cell,
+.period-attendance-cell label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.reservation-time-cell b { font-size: 10px; }
+.reservation-time-cell span { font-size: 9px; color: #7d8d87; }
+.period-attendance-cell {
+  min-width: 145px;
+}
+.period-attendance-cell label {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 0;
+}
+.period-attendance-cell label > span {
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.period-attendance-cell .status { min-width: 88px; }
 .admin-tools input {
   border: 0;
   outline: 0;

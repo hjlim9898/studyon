@@ -49,6 +49,11 @@ export async function saveStudySettings(settings) {
 }
 
 export function reservationStudyMinutes(reservation) {
+  if (reservation.attendanceByPeriod) {
+    return Object.values(reservation.attendanceByPeriod).filter(
+      (status) => status === "출석",
+    ).length * 60;
+  }
   if (reservation.attendanceStatus !== "출석") {
     return Number(reservation.studyMinutes || 0);
   }
@@ -57,6 +62,15 @@ export function reservationStudyMinutes(reservation) {
     || (String(reservation.timeSlot || "").match(/\d교시/g) || []).length
     || 1;
   return periodCount * 60;
+}
+
+export function reservationPeriodIds(reservation) {
+  if (reservation.periodIds?.length) return reservation.periodIds;
+  const assignmentIds = Object.keys(reservation.seatAssignments || {}).map(Number);
+  if (assignmentIds.length) return assignmentIds;
+  return [...String(reservation.timeSlot || "").matchAll(/([1-4])교시/g)].map(
+    (match) => Number(match[1]),
+  );
 }
 
 export async function updateReservationStatus(id, status) {
@@ -68,6 +82,47 @@ export async function updateReservationStatus(id, status) {
     transaction.update(reference, {
       attendanceStatus: status,
       studyMinutes: status === "출석" ? reservationStudyMinutes(reservation) : 0,
+      updatedAt: serverTimestamp(),
+    });
+  });
+}
+
+export async function updateReservationPeriodStatus(id, periodId, status) {
+  const reference = doc(db, "reservations", id);
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(reference);
+    if (!snapshot.exists()) throw new Error("RESERVATION_NOT_FOUND");
+    const reservation = snapshot.data();
+    const periodIds = reservationPeriodIds(reservation);
+    const attendanceByPeriod = {
+      ...Object.fromEntries(
+        periodIds.map((idValue) => [
+          String(idValue),
+          reservation.attendanceByPeriod?.[String(idValue)] ||
+            reservation.attendanceStatus ||
+            "신청",
+        ]),
+      ),
+      [String(periodId)]: status,
+    };
+    const statuses = periodIds.map(
+      (idValue) => attendanceByPeriod[String(idValue)] || "신청",
+    );
+    const attendanceStatus = statuses.every((value) => value === "출석")
+      ? "출석"
+      : statuses.includes("학습 중") || statuses.includes("출석")
+        ? "학습 중"
+        : statuses.includes("지각")
+          ? "지각"
+          : statuses.includes("결석")
+            ? "결석"
+            : "신청";
+    transaction.update(reference, {
+      attendanceByPeriod,
+      attendanceStatus,
+      studyMinutes:
+        Object.values(attendanceByPeriod).filter((value) => value === "출석")
+          .length * 60,
       updatedAt: serverTimestamp(),
     });
   });

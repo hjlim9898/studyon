@@ -45,6 +45,7 @@ import {
   publishRankingProfile,
   publishRankingProfiles,
   reservationStudyMinutes,
+  reservationPeriodIds,
   saveStudySettings,
   seedStudyRoom,
   syncAutomaticPoints,
@@ -52,6 +53,7 @@ import {
   subscribeMyReservations,
   subscribeToCollection,
   updateReservationStatus,
+  updateReservationPeriodStatus,
   updateSeat,
   updateStudent,
 } from "./services/firestore";
@@ -1660,6 +1662,9 @@ function TeacherConsole({ notify, page }) {
                 ),
               ].join(", ") || "-",
             time: item.timeSlot || "-",
+            date: item.date || "-",
+            periodIds: reservationPeriodIds(item),
+            attendanceByPeriod: item.attendanceByPeriod || {},
             minutes: reservationStudyMinutes(item),
             streak: student.streak || 0,
             status: item.attendanceStatus || "신청",
@@ -1684,6 +1689,14 @@ function TeacherConsole({ notify, page }) {
       notify("출결 상태가 실시간으로 반영되었습니다.");
     } catch {
       notify("출결 상태를 변경하지 못했습니다.");
+    }
+  };
+  const changePeriodStatus = async (id, periodId, status) => {
+    try {
+      await updateReservationPeriodStatus(id, periodId, status);
+      notify(`${periodId}교시 출결 상태를 반영했습니다.`);
+    } catch {
+      notify("교시별 출결 상태를 변경하지 못했습니다.");
     }
   };
   const selectAttendanceMetric = (metric) => {
@@ -1909,7 +1922,7 @@ function TeacherConsole({ notify, page }) {
                 <tr>
                   <th>학생</th>
                   <th>좌석</th>
-                  <th>신청 시간</th>
+                  <th>신청 날짜·시간</th>
                   <th>학습시간</th>
                   <th>연속 참여</th>
                   <th>출결 상태</th>
@@ -1930,7 +1943,12 @@ function TeacherConsole({ notify, page }) {
                     <td>
                       <b>{item.seat}</b>
                     </td>
-                    <td>{item.time}</td>
+                    <td>
+                      <div className="reservation-time-cell">
+                        <b>{item.date}</b>
+                        <span>{item.time}</span>
+                      </div>
+                    </td>
                     <td>
                       {item.minutes
                         ? `${Math.floor(item.minutes / 60)}시간 ${item.minutes % 60}분`
@@ -1941,18 +1959,33 @@ function TeacherConsole({ notify, page }) {
                         <Flame /> {item.streak}일
                       </span>
                     </td>
-                    <td>
-                      <select
-                        className={`status ${item.status.replace(" ", "")}`}
-                        value={item.status}
-                        onChange={(e) => changeStatus(item.id, e.target.value)}
-                      >
-                        <option>신청</option>
-                        <option>학습 중</option>
-                        <option>출석</option>
-                        <option>지각</option>
-                        <option>결석</option>
-                      </select>
+                    <td className="period-attendance-cell">
+                      {item.periodIds.length ? item.periodIds.map((periodId) => (
+                        <label key={periodId}>
+                          <span>{periodId}교시</span>
+                          <select
+                            className={`status ${(item.attendanceByPeriod[String(periodId)] || item.status).replace(" ", "")}`}
+                            value={item.attendanceByPeriod[String(periodId)] || item.status}
+                            onChange={(event) =>
+                              changePeriodStatus(item.id, periodId, event.target.value)
+                            }
+                          >
+                            <option>신청</option>
+                            <option>학습 중</option>
+                            <option>출석</option>
+                            <option>지각</option>
+                            <option>결석</option>
+                          </select>
+                        </label>
+                      )) : (
+                        <select
+                          className={`status ${item.status.replace(" ", "")}`}
+                          value={item.status}
+                          onChange={(event) => changeStatus(item.id, event.target.value)}
+                        >
+                          <option>신청</option><option>학습 중</option><option>출석</option><option>지각</option><option>결석</option>
+                        </select>
+                      )}
                     </td>
                   </tr>
                 ))}
