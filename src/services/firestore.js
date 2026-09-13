@@ -331,14 +331,12 @@ function dateKey(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value || "") ? value : null;
 }
 
-export function calculateAutomaticPoints(reservations, settings = {}) {
+export function calculateAutomaticPointDetails(reservations, settings = {}) {
   const attended = reservations.filter(
     (item) =>
       item.status !== "cancelled" &&
       ["출석", "학습 중"].includes(item.attendanceStatus),
   );
-  if (!attended.length) return 0;
-
   const policies = Object.fromEntries(
     (settings.rewardPolicies || []).map((policy) => [policy.id, policy]),
   );
@@ -365,7 +363,7 @@ export function calculateAutomaticPoints(reservations, settings = {}) {
   }
 
   const basePoints = attended.length * Number(settings.attendancePoints ?? 10);
-  const firstStudy = reward("firstStudy", 30);
+  const firstStudy = attended.length ? reward("firstStudy", 30) : 0;
   const streakPoints = longestStreak >= 5 ? reward("streak5", 50) : 0;
   const monthlyConsistency = Object.values(months).filter(
     (month) => month.dates.size >= 15,
@@ -398,15 +396,36 @@ export function calculateAutomaticPoints(reservations, settings = {}) {
   ).length;
   const perfectWeekPoints = perfectWeeks * reward("perfectWeek", 70);
 
-  return (
-    basePoints +
-    firstStudy +
-    streakPoints +
-    monthlyConsistency +
-    monthlyGoal +
-    perfectAttendance +
-    perfectWeekPoints
-  );
+  const items = [
+    {
+      id: "attendance",
+      name: "출석 기본 포인트",
+      condition: `${attended.length}회 참여 × ${Number(settings.attendancePoints ?? 10)}P`,
+      points: basePoints,
+      earned: attended.length > 0,
+    },
+    { id: "firstStudy", name: "첫 도전", condition: "처음 자율학습 참여", points: firstStudy, earned: attended.length > 0 },
+    { id: "streak5", name: "출석 스트릭", condition: `최장 ${longestStreak}일 연속 참여`, points: streakPoints, earned: longestStreak >= 5 },
+    { id: "monthly15", name: "이달의 꾸준이", condition: "월 15회 이상 참여", points: monthlyConsistency, earned: monthlyConsistency > 0 },
+    { id: "monthlyGoal", name: "목표 달성", condition: "월 40시간 학습", points: monthlyGoal, earned: monthlyGoal > 0 },
+    { id: "perfectAttendance", name: "성실 출석", condition: "지각·결석 없이 신청 일정 참여", points: perfectAttendance, earned: perfectAttendance > 0 },
+    { id: "perfectWeek", name: "퍼펙트 위크", condition: `${perfectWeeks}주 신청 일정 모두 참여`, points: perfectWeekPoints, earned: perfectWeeks > 0 },
+    { id: "studyonChallenge", name: "StudyON 챌린지", condition: "운영 중인 특별 챌린지 달성", points: 0, earned: false },
+    { id: "classTogether", name: "함께 공부하기", condition: "학급 전체 목표 달성", points: 0, earned: false },
+  ];
+  return {
+    total: items.reduce((sum, item) => sum + item.points, 0),
+    items,
+    attendedCount: attended.length,
+    totalMinutes: attended.reduce(
+      (sum, item) => sum + Number(item.studyMinutes || 0),
+      0,
+    ),
+  };
+}
+
+export function calculateAutomaticPoints(reservations, settings = {}) {
+  return calculateAutomaticPointDetails(reservations, settings).total;
 }
 
 export async function syncAutomaticPoints(students, reservations, settings) {

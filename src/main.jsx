@@ -38,6 +38,7 @@ import { auth, db } from "./firebase";
 import {
   cancelReservationPeriod,
   cancelStudyReservation,
+  calculateAutomaticPointDetails,
   changeReservationPeriodSeat,
   classNameFromStudentNumber,
   createStudyReservation,
@@ -2942,30 +2943,107 @@ function StudentRecordsPage({ user }) {
   );
 }
 
-function EmptyRewardsPage() {
+function StudentRewardsPage({ user }) {
+  const [reservations, setReservations] = useState([]);
+  const [studySettings, setStudySettings] = useState(defaultSettings);
+  const [loading, setLoading] = useState(true);
+  useEffect(
+    () =>
+      subscribeMyReservations(
+        user.uid,
+        (items) => {
+          setReservations(items);
+          setLoading(false);
+        },
+        () => setLoading(false),
+      ),
+    [user.uid],
+  );
+  useEffect(
+    () =>
+      subscribeStudySettings(
+        (data) => setStudySettings((current) => ({ ...current, ...(data || {}) })),
+        () => {},
+      ),
+    [],
+  );
+  const details = calculateAutomaticPointDetails(reservations, studySettings);
+  const pointItems = details.items.filter((item) => item.points > 0);
+  const badgeItems = details.items.filter((item) => item.id !== "attendance");
+  const icons = {
+    firstStudy: Medal,
+    streak5: Flame,
+    monthly15: Trophy,
+    monthlyGoal: Target,
+    perfectAttendance: Check,
+    perfectWeek: Star,
+    studyonChallenge: Sparkles,
+    classTogether: Users,
+  };
   return (
     <div className="page">
       <div className="reward-hero">
         <div>
           <span className="eyebrow">MY REWARDS</span>
-          <h1>첫 도전부터 시작해 보세요</h1>
-          <p>자율학습에 참여하면 포인트와 배지가 차곡차곡 쌓입니다.</p>
+          <h1>나의 포인트 및 배지</h1>
+          <p>자율학습 참여로 획득한 포인트와 배지의 세부 내역입니다.</p>
         </div>
         <div className="points">
           <Star />
           <div>
             <small>보유 포인트</small>
-            <strong>0 P</strong>
+            <strong>{details.total.toLocaleString()} P</strong>
+            <span>{details.attendedCount}회 참여 · {Math.floor(details.totalMinutes / 60)}시간 {details.totalMinutes % 60}분</span>
           </div>
         </div>
       </div>
-      <section className="panel student-empty">
-        <span className="empty-illustration">
-          <Trophy />
-        </span>
-        <h2>아직 획득한 배지가 없습니다</h2>
-        <p>첫 자율학습을 완료하면 ‘첫 도전’ 배지를 받을 수 있어요.</p>
-      </section>
+      <div className="section-head badge-heading">
+        <div>
+          <span className="eyebrow">POINT HISTORY</span>
+          <h2>획득 포인트 세부 내역</h2>
+        </div>
+      </div>
+      {pointItems.length ? (
+        <div className="reward-grid point-detail-grid">
+          {pointItems.map((item, index) => (
+            <article className="reward-card" key={item.id}>
+              <span className={`badge ${["green", "amber", "purple", "blue"][index % 4]}`}>
+                <Star />
+              </span>
+              <em>+{item.points.toLocaleString()}P</em>
+              <h3>{item.name}</h3>
+              <p>{item.condition}</p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <section className="panel student-empty compact">
+          <span className="empty-illustration"><Star /></span>
+          <h2>{loading ? "포인트 내역을 불러오는 중입니다" : "아직 획득한 포인트가 없습니다"}</h2>
+          <p>출석이 확인되면 포인트가 자동으로 계산됩니다.</p>
+        </section>
+      )}
+      <div className="section-head badge-heading">
+        <div>
+          <span className="eyebrow">BADGE COLLECTION</span>
+          <h2>배지 세부 내역</h2>
+        </div>
+        <span>{badgeItems.filter((item) => item.earned).length} / {badgeItems.length} 획득</span>
+      </div>
+      <div className="collection reward-detail-collection">
+        {badgeItems.map((item, index) => {
+          const Icon = icons[item.id] || Trophy;
+          return (
+            <article className={!item.earned ? "locked" : ""} key={item.id}>
+              <span className={`badge ${["amber", "green", "purple", "blue"][index % 4]}`}><Icon /></span>
+              <b>{item.name}</b>
+              <small>{item.condition}</small>
+              <strong>{item.earned ? "획득 완료" : "미획득"}{item.points ? ` · ${item.points}P` : ""}</strong>
+              {item.earned && <i><Check /></i>}
+            </article>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -3159,7 +3237,7 @@ function App() {
     if (page === "apply")
       return <ApplyPage notify={notify} user={user} profile={profile} />;
     if (page === "records") return <StudentRecordsPage user={user} />;
-    if (page === "rewards") return <EmptyRewardsPage />;
+    if (page === "rewards") return <StudentRewardsPage user={user} />;
     return (
       <EmptyStudentHome
         setPage={setPage}

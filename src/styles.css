@@ -1518,7 +1518,8 @@ header {
   grid-template-columns: repeat(6, 1fr);
   gap: 12px;
 }
-.collection > div {
+.collection > div,
+.collection > article {
   background: white;
   border: 1px solid var(--line);
   border-radius: 13px;
@@ -1537,7 +1538,8 @@ header {
   color: #87958f;
   margin-top: 3px;
 }
-.collection > div > i {
+.collection > div > i,
+.collection > article > i {
   position: absolute;
   right: 8px;
   top: 8px;
@@ -1549,12 +1551,26 @@ header {
   display: grid;
   place-items: center;
 }
-.collection > div > i svg {
+.collection > div > i svg,
+.collection > article > i svg {
   width: 10px;
 }
 .collection .locked {
   filter: grayscale(1);
   opacity: 0.46;
+}
+.reward-detail-collection article strong {
+  margin-top: 8px;
+  font-size: 8px;
+  color: #159568;
+}
+.reward-detail-collection article.locked strong {
+  color: #77847f;
+}
+.reward-hero .points span {
+  margin-top: 3px;
+  font-size: 8px;
+  color: #a6c5bb;
 }
 .teacher-stats {
   grid-template-columns: repeat(4, 1fr);
