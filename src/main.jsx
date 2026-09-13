@@ -53,6 +53,19 @@ const days = [
   { day: "목", date: "17" },
   { day: "금", date: "18" },
 ];
+const standardPeriods = [
+  { id: 1, label: "1교시", start: "15:40", end: "17:00" },
+  { id: 2, label: "2교시", start: "17:20", end: "18:40" },
+  { id: 3, label: "3교시", start: "19:00", end: "20:00" },
+  { id: 4, label: "4교시", start: "20:10", end: "21:00" },
+];
+const standardWeeklySchedule = {
+  월: [2, 3, 4],
+  화: [1, 2, 3, 4],
+  수: [2, 3, 4],
+  목: [1, 2, 3, 4],
+  금: [1, 2, 3, 4],
+};
 const initialStudents = [
   {
     id: 1,
@@ -629,8 +642,27 @@ function StudentHome({ setPage, checkedIn, toggleCheck }) {
 
 function ApplyPage({ notify }) {
   const [day, setDay] = useState(0),
-    [slot, setSlot] = useState("18:00 – 21:00"),
-    [seat, setSeat] = useState("A-03");
+    [slot, setSlot] = useState("2교시 · 17:20 – 18:40"),
+    [seat, setSeat] = useState("A-03"),
+    [studySettings, setStudySettings] = useState(null);
+  useEffect(
+    () =>
+      subscribeStudySettings(
+        (data) => setStudySettings(data),
+        () => {},
+      ),
+    [],
+  );
+  const configuredPeriods = studySettings?.periods || standardPeriods;
+  const configuredSchedule =
+    studySettings?.weeklySchedule || standardWeeklySchedule;
+  const availablePeriods = configuredPeriods.filter((period) =>
+    (configuredSchedule[days[day].day] || []).includes(period.id),
+  );
+  useEffect(() => {
+    const first = availablePeriods[0];
+    if (first) setSlot(`${first.label} · ${first.start} – ${first.end}`);
+  }, [day, studySettings]);
   return (
     <div className="page">
       <div className="title-row">
@@ -662,20 +694,23 @@ function ApplyPage({ notify }) {
             <b className="step">2</b> 시간 선택
           </h2>
           <div className="slot-list">
-            {["18:00 – 21:00", "19:00 – 22:00", "18:00 – 20:00"].map((s, i) => (
-              <button
-                className={slot === s ? "selected" : ""}
-                onClick={() => setSlot(s)}
-                key={s}
-              >
-                <span>
-                  <Clock3 />
-                  {s}
-                </span>
-                <small>{[17, 8, 12][i]}석 남음</small>
-                <Check />
-              </button>
-            ))}
+            {availablePeriods.map((period, i) => {
+              const value = `${period.label} · ${period.start} – ${period.end}`;
+              return (
+                <button
+                  className={slot === value ? "selected" : ""}
+                  onClick={() => setSlot(value)}
+                  key={period.id}
+                >
+                  <span>
+                    <Clock3 />
+                    <b>{period.label}</b> {period.start} – {period.end}
+                  </span>
+                  <small>{[17, 14, 11, 8][i]}석 남음</small>
+                  <Check />
+                </button>
+              );
+            })}
           </div>
         </section>
         <section className="panel seat-panel">
@@ -1564,11 +1599,10 @@ function StudentManager({ students: profiles, query, setQuery, notify }) {
 const defaultSettings = {
   roomName: "제1 자율학습실",
   capacity: 40,
-  startTime: "18:00",
-  endTime: "21:00",
+  periods: standardPeriods,
+  weeklySchedule: standardWeeklySchedule,
   lateAfterMinutes: 10,
   attendancePoints: 10,
-  operatingDays: ["월", "화", "수", "목", "금"],
   applicationsOpen: true,
   autoCheckout: true,
 };
@@ -1594,14 +1628,24 @@ function OperationsSettings({ notify }) {
     [],
   );
 
-  const change = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-  const toggleDay = (day) =>
+  const change = (key, value) =>
+    setForm((current) => ({ ...current, [key]: value }));
+  const changePeriod = (id, key, value) =>
     change(
-      "operatingDays",
-      form.operatingDays.includes(day)
-        ? form.operatingDays.filter((item) => item !== day)
-        : [...form.operatingDays, day],
+      "periods",
+      form.periods.map((period) =>
+        period.id === id ? { ...period, [key]: value } : period,
+      ),
     );
+  const toggleSchedule = (day, periodId) => {
+    const current = form.weeklySchedule[day] || [];
+    change("weeklySchedule", {
+      ...form.weeklySchedule,
+      [day]: current.includes(periodId)
+        ? current.filter((id) => id !== periodId)
+        : [...current, periodId].sort(),
+    });
+  };
   const save = async (event) => {
     event.preventDefault();
     setSaving(true);
@@ -1615,7 +1659,9 @@ function OperationsSettings({ notify }) {
       });
       notify("운영 설정을 저장했습니다.");
     } catch {
-      setError("설정을 저장하지 못했습니다. Firestore 규칙과 교사 권한을 확인해 주세요.");
+      setError(
+        "설정을 저장하지 못했습니다. Firestore 규칙과 교사 권한을 확인해 주세요.",
+      );
     } finally {
       setSaving(false);
     }
@@ -1630,37 +1676,186 @@ function OperationsSettings({ notify }) {
           <p>자율학습실 운영 기준과 학생 신청 정책을 설정합니다.</p>
         </div>
       </div>
-      {error && <div className="db-banner"><strong>설정 확인</strong><span>{error}</span></div>}
+      {error && (
+        <div className="db-banner">
+          <strong>설정 확인</strong>
+          <span>{error}</span>
+        </div>
+      )}
       <form className="settings-layout" onSubmit={save}>
         <section className="panel settings-card">
-          <div className="settings-title"><span className="icon mint"><Armchair /></span><div><h2>학습실 기본 정보</h2><p>학생에게 표시할 학습실 정보입니다.</p></div></div>
+          <div className="settings-title">
+            <span className="icon mint">
+              <Armchair />
+            </span>
+            <div>
+              <h2>학습실 기본 정보</h2>
+              <p>학생에게 표시할 학습실 정보입니다.</p>
+            </div>
+          </div>
           <div className="form-grid">
-            <label>학습실 이름<input value={form.roomName} onChange={(e) => change("roomName", e.target.value)} required /></label>
-            <label>전체 좌석 수<input type="number" min="1" max="300" value={form.capacity} onChange={(e) => change("capacity", e.target.value)} required /></label>
+            <label>
+              학습실 이름
+              <input
+                value={form.roomName}
+                onChange={(e) => change("roomName", e.target.value)}
+                required
+              />
+            </label>
+            <label>
+              전체 좌석 수
+              <input
+                type="number"
+                min="1"
+                max="300"
+                value={form.capacity}
+                onChange={(e) => change("capacity", e.target.value)}
+                required
+              />
+            </label>
           </div>
         </section>
         <section className="panel settings-card">
-          <div className="settings-title"><span className="icon blue"><Clock3 /></span><div><h2>운영 시간 및 요일</h2><p>신청 가능한 기본 운영 일정을 설정합니다.</p></div></div>
-          <div className="form-grid">
-            <label>시작 시간<input type="time" value={form.startTime} onChange={(e) => change("startTime", e.target.value)} required /></label>
-            <label>종료 시간<input type="time" value={form.endTime} onChange={(e) => change("endTime", e.target.value)} required /></label>
+          <div className="settings-title">
+            <span className="icon blue">
+              <Clock3 />
+            </span>
+            <div>
+              <h2>운영 시간 및 요일</h2>
+              <p>신청 가능한 기본 운영 일정을 설정합니다.</p>
+            </div>
           </div>
-          <label className="field-label">운영 요일</label>
-          <div className="day-picker">{["월", "화", "수", "목", "금", "토", "일"].map((day) => <button type="button" className={form.operatingDays.includes(day) ? "selected" : ""} onClick={() => toggleDay(day)} key={day}>{day}</button>)}</div>
+          <div className="period-editor">
+            {form.periods.map((period) => (
+              <div key={period.id}>
+                <b>{period.label}</b>
+                <input
+                  type="time"
+                  value={period.start}
+                  onChange={(e) =>
+                    changePeriod(period.id, "start", e.target.value)
+                  }
+                />
+                <span>–</span>
+                <input
+                  type="time"
+                  value={period.end}
+                  onChange={(e) =>
+                    changePeriod(period.id, "end", e.target.value)
+                  }
+                />
+              </div>
+            ))}
+          </div>
+          <label className="field-label">요일별 운영 교시</label>
+          <div className="schedule-matrix">
+            <div className="matrix-head">
+              <span>요일</span>
+              {form.periods.map((period) => (
+                <b key={period.id}>{period.label}</b>
+              ))}
+            </div>
+            {["월", "화", "수", "목", "금"].map((day) => (
+              <div className="matrix-row" key={day}>
+                <strong>{day}</strong>
+                {form.periods.map((period) => (
+                  <button
+                    type="button"
+                    className={
+                      (form.weeklySchedule[day] || []).includes(period.id)
+                        ? "selected"
+                        : ""
+                    }
+                    onClick={() => toggleSchedule(day, period.id)}
+                    key={period.id}
+                  >
+                    <Check />
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
         </section>
         <section className="panel settings-card">
-          <div className="settings-title"><span className="icon yellow"><ClipboardCheck /></span><div><h2>출결 및 보상 기준</h2><p>자동 출결 처리와 기본 포인트를 설정합니다.</p></div></div>
+          <div className="settings-title">
+            <span className="icon yellow">
+              <ClipboardCheck />
+            </span>
+            <div>
+              <h2>출결 및 보상 기준</h2>
+              <p>자동 출결 처리와 기본 포인트를 설정합니다.</p>
+            </div>
+          </div>
           <div className="form-grid">
-            <label>지각 처리 기준<input type="number" min="0" max="120" value={form.lateAfterMinutes} onChange={(e) => change("lateAfterMinutes", e.target.value)} /><small>시작 시간 이후 기준(분)</small></label>
-            <label>출석 기본 포인트<input type="number" min="0" max="1000" value={form.attendancePoints} onChange={(e) => change("attendancePoints", e.target.value)} /><small>정상 출석 시 자동 지급</small></label>
+            <label>
+              지각 처리 기준
+              <input
+                type="number"
+                min="0"
+                max="120"
+                value={form.lateAfterMinutes}
+                onChange={(e) => change("lateAfterMinutes", e.target.value)}
+              />
+              <small>시작 시간 이후 기준(분)</small>
+            </label>
+            <label>
+              출석 기본 포인트
+              <input
+                type="number"
+                min="0"
+                max="1000"
+                value={form.attendancePoints}
+                onChange={(e) => change("attendancePoints", e.target.value)}
+              />
+              <small>정상 출석 시 자동 지급</small>
+            </label>
           </div>
         </section>
         <section className="panel settings-card">
-          <div className="settings-title"><span className="icon mint"><Settings /></span><div><h2>신청 및 자동화</h2><p>학생 신청과 퇴실 처리 방식을 관리합니다.</p></div></div>
-          <label className="toggle-row"><div><b>학생 신청 받기</b><span>비활성화하면 새로운 신청을 받지 않습니다.</span></div><input type="checkbox" checked={form.applicationsOpen} onChange={(e) => change("applicationsOpen", e.target.checked)} /><i /></label>
-          <label className="toggle-row"><div><b>운영 종료 시 자동 퇴실</b><span>종료 시간에 학습 중인 학생을 자동 퇴실 처리합니다.</span></div><input type="checkbox" checked={form.autoCheckout} onChange={(e) => change("autoCheckout", e.target.checked)} /><i /></label>
+          <div className="settings-title">
+            <span className="icon mint">
+              <Settings />
+            </span>
+            <div>
+              <h2>신청 및 자동화</h2>
+              <p>학생 신청과 퇴실 처리 방식을 관리합니다.</p>
+            </div>
+          </div>
+          <label className="toggle-row">
+            <div>
+              <b>학생 신청 받기</b>
+              <span>비활성화하면 새로운 신청을 받지 않습니다.</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={form.applicationsOpen}
+              onChange={(e) => change("applicationsOpen", e.target.checked)}
+            />
+            <i />
+          </label>
+          <label className="toggle-row">
+            <div>
+              <b>운영 종료 시 자동 퇴실</b>
+              <span>종료 시간에 학습 중인 학생을 자동 퇴실 처리합니다.</span>
+            </div>
+            <input
+              type="checkbox"
+              checked={form.autoCheckout}
+              onChange={(e) => change("autoCheckout", e.target.checked)}
+            />
+            <i />
+          </label>
         </section>
-        <div className="settings-actions"><span>{loading ? "설정을 불러오는 중입니다." : "변경사항은 학생 화면에 즉시 반영됩니다."}</span><button className="primary-button" disabled={saving || loading}><Check /> {saving ? "저장 중..." : "설정 저장"}</button></div>
+        <div className="settings-actions">
+          <span>
+            {loading
+              ? "설정을 불러오는 중입니다."
+              : "변경사항은 학생 화면에 즉시 반영됩니다."}
+          </span>
+          <button className="primary-button" disabled={saving || loading}>
+            <Check /> {saving ? "저장 중..." : "설정 저장"}
+          </button>
+        </div>
       </form>
     </div>
   );
