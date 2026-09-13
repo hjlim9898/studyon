@@ -1550,7 +1550,7 @@ function TeacherConsole({ notify, page }) {
           setQuery={setQuery}
           notify={notify}
         />
-      ) : (
+      ) : page === "attendance" ? (
         <section className="panel admin-panel">
           <div className="section-head">
             <div>
@@ -1654,7 +1654,7 @@ function TeacherConsole({ notify, page }) {
             </table>
           </div>
         </section>
-      )}
+      ) : null}
     </div>
   );
 }
