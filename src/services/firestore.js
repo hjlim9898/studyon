@@ -242,11 +242,13 @@ export async function cancelStudyReservation(id) {
     if (!snapshot.exists()) throw new Error("RESERVATION_NOT_FOUND");
     const reservation = snapshot.data();
     (reservation.periodIds || []).forEach((periodId) => {
+      const seatId =
+        reservation.seatAssignments?.[String(periodId)] || reservation.seatId;
       transaction.delete(
         doc(
           db,
           "reservationLocks",
-          `${reservation.date}_${periodId}_${reservation.seatId}`,
+          `${reservation.date}_${periodId}_${seatId}`,
         ),
       );
       transaction.delete(
@@ -280,6 +282,38 @@ export async function updateStudent(id, data) {
     ...data,
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function publishRankingProfile(id, profile) {
+  await setDoc(
+    doc(db, "publicRankings", id),
+    {
+      name: profile.name || "이름 없음",
+      className: profile.className || "학급 미지정",
+      points: profile.points || 0,
+      streak: profile.streak || 0,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+}
+
+export async function publishRankingProfiles(students) {
+  const batch = writeBatch(db);
+  students.forEach((student) => {
+    batch.set(
+      doc(db, "publicRankings", student.id),
+      {
+        name: student.name || "이름 없음",
+        className: student.className || "학급 미지정",
+        points: student.points || 0,
+        streak: student.streak || 0,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
+  await batch.commit();
 }
 
 export async function seedStudyRoom(students) {

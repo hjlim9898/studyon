@@ -55,6 +55,18 @@ service cloud.firestore {
       allow delete: if isTeacher();
     }
 
+    // 순위 화면에는 개인정보를 제외한 이름·학급·포인트만 공개합니다.
+    match /publicRankings/{userId} {
+      allow read: if signedIn();
+      allow create, update: if isTeacher()
+        || (isOwner(userId)
+          && request.resource.data.keys().hasOnly([
+            'name', 'className', 'points', 'streak', 'updatedAt'
+          ])
+          && request.resource.data.points == userProfile().data.points);
+      allow delete: if isTeacher();
+    }
+
     // 학생은 본인의 신청만 생성·조회·취소할 수 있습니다.
     match /reservations/{reservationId} {
       allow read: if isTeacher()

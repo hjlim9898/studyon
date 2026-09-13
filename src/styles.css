@@ -512,6 +512,32 @@ header {
   display: flex;
   flex-direction: column;
 }
+.ranking-champions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 4px 0 16px;
+}
+.ranking-champions article {
+  display: grid;
+  grid-template-columns: 32px auto 1fr auto;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 15px;
+  border: 1px solid #f0d38c;
+  border-radius: 12px;
+  background: linear-gradient(100deg, #fff7df, #fffdf7);
+  color: #9b6a0c;
+}
+.ranking-champions article.class-champion {
+  border-color: #a9dfc9;
+  background: linear-gradient(100deg, #eaf9f2, #fbfffd);
+  color: #147c5a;
+}
+.ranking-champions svg { width: 25px; }
+.ranking-champions span { font-size: 9px; font-weight: 800; }
+.ranking-champions strong { font-size: 12px; }
+.ranking-champions b { font-size: 11px; }
 .leader-row {
   display: grid;
   grid-template-columns: 40px 40px minmax(130px, 1fr) 70px 115px 85px 90px;
@@ -594,6 +620,7 @@ header {
   }
 }
 @media (max-width: 560px) {
+  .ranking-champions { grid-template-columns: 1fr; }
   .leader-row {
     grid-template-columns: 28px 34px 1fr 70px;
   }

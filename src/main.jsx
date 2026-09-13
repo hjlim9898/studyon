@@ -40,6 +40,8 @@ import {
   cancelStudyReservation,
   changeReservationPeriodSeat,
   createStudyReservation,
+  publishRankingProfile,
+  publishRankingProfiles,
   saveStudySettings,
   seedStudyRoom,
   subscribeStudySettings,
@@ -695,6 +697,7 @@ function ApplyPage({ notify, user, profile }) {
     [seat, setSeat] = useState(""),
     [studySettings, setStudySettings] = useState(null),
     [myReservations, setMyReservations] = useState([]),
+    [reservationLocks, setReservationLocks] = useState([]),
     [reservationsLoaded, setReservationsLoaded] = useState(false),
     [editingPeriod, setEditingPeriod] = useState(null),
     [submitting, setSubmitting] = useState(false),
@@ -723,6 +726,15 @@ function ApplyPage({ notify, user, profile }) {
         },
       ),
     [user.uid],
+  );
+  useEffect(
+    () =>
+      subscribeToCollection(
+        "reservationLocks",
+        setReservationLocks,
+        () => setReservationError("예약 좌석 현황을 불러오지 못했습니다."),
+      ),
+    [],
   );
   const configuredPeriods = studySettings?.periods || standardPeriods;
   const configuredSchedule =
@@ -761,6 +773,18 @@ function ApplyPage({ notify, user, profile }) {
       selectedPeriodIds.includes(period.id) &&
       !alreadyReservedPeriodIds.includes(period.id),
   );
+  const isSeatReserved = (seatId, periodIds = selectedPeriods.map((p) => p.id)) =>
+    periodIds.some((periodId) =>
+      reservationLocks.some(
+        (lock) =>
+          lock.date === selectedDate &&
+          lock.periodId === periodId &&
+          lock.seatId === seatId,
+      ),
+    );
+  useEffect(() => {
+    if (seat && isSeatReserved(seat)) setSeat("");
+  }, [seat, selectedDate, selectedPeriodIds, reservationLocks]);
   const selectedPeriodSummary = selectedPeriods
     .map((period) => `${period.label} ${period.start}–${period.end}`)
     .join(", ");
@@ -967,17 +991,22 @@ function ApplyPage({ notify, user, profile }) {
           </div>
           <div className="board">교탁 · BOARD</div>
           <div className="seat-map">
-            {seats.map((s) => (
-              <button
-                disabled={s.taken}
-                className={seat === s.id ? "selected" : ""}
-                onClick={() => setSeat(s.id)}
-                key={s.id}
-              >
-                <Armchair />
-                <span>{s.id}</span>
-              </button>
-            ))}
+            {seats.map((s) => {
+              const reserved = isSeatReserved(s.id);
+              return (
+                <button
+                  disabled={s.taken || reserved}
+                  className={`${seat === s.id ? "selected" : ""} ${reserved ? "reserved" : ""}`}
+                  title={reserved ? "다른 학생이 예약한 좌석입니다." : ""}
+                  onClick={() => setSeat(s.id)}
+                  key={s.id}
+                >
+                  <Armchair />
+                  <span>{s.id}</span>
+                  {reserved && <small>예약</small>}
+                </button>
+              );
+            })}
           </div>
         </section>
       </div>
@@ -1100,7 +1129,15 @@ function ApplyPage({ notify, user, profile }) {
                                           ? "current"
                                           : ""
                                       }
-                                      disabled={assignedSeat === seatOption.id}
+                                      disabled={
+                                        assignedSeat === seatOption.id ||
+                                        reservationLocks.some(
+                                          (lock) =>
+                                            lock.date === item.date &&
+                                            lock.periodId === period.id &&
+                                            lock.seatId === seatOption.id,
+                                        )
+                                      }
                                       onClick={() =>
                                         changePeriodSeat(
                                           item,
@@ -1544,7 +1581,9 @@ function TeacherConsole({ notify, page }) {
       subscribeToCollection(
         "users",
         (data) => {
-          setStudentProfiles(data.filter((item) => item.role === "student"));
+          const students = data.filter((item) => item.role === "student");
+          setStudentProfiles(students);
+          if (students.length) publishRankingProfiles(students).catch(() => {});
           done();
         },
         fail,
@@ -1665,8 +1704,7 @@ function TeacherConsole({ notify, page }) {
           (a, b) =>
             (b.points || 0) - (a.points || 0) ||
             b.participationCount - a.participationCount,
-        )
-        .slice(0, 5),
+        ),
     [studentProfiles, reservations],
   );
   return (
@@ -1912,6 +1950,15 @@ function ParticipationLeaderboard({ students, loading }) {
     ["StudyON 챌린지", "일정 기간 목표 달성", "추첨권 또는 특별 배지", 0],
     ["함께 공부하기", "학급 전체 목표 달성", "학급 공동 보상", 0],
   ];
+  const classLeaders = Object.values(
+    students.reduce((classes, student) => {
+      const className = student.className || "학급 미지정";
+      classes[className] ||= { name: className, points: 0, students: 0 };
+      classes[className].points += student.points || 0;
+      classes[className].students += 1;
+      return classes;
+    }, {}),
+  ).sort((a, b) => b.points - a.points || b.students - a.students);
   return (
     <section className="panel leaderboard-panel">
       <div className="section-head">
@@ -1928,9 +1975,25 @@ function ParticipationLeaderboard({ students, loading }) {
           <ChevronRight />
         </button>
       </div>
+      {!!students.length && (
+        <div className="ranking-champions">
+          <article>
+            <Trophy />
+            <span>학생 1위</span>
+            <strong>{students[0].name || "이름 없음"}</strong>
+            <b>{(students[0].points || 0).toLocaleString()} P</b>
+          </article>
+          <article className="class-champion">
+            <Users />
+            <span>학급 1위</span>
+            <strong>{classLeaders[0]?.name}</strong>
+            <b>{(classLeaders[0]?.points || 0).toLocaleString()} P</b>
+          </article>
+        </div>
+      )}
       {students.length ? (
         <div className="leaderboard-list">
-          {students.map((student, index) => (
+          {students.slice(0, 10).map((student, index) => (
             <article
               className={`leader-row rank-${index + 1}`}
               key={student.id}
@@ -1946,13 +2009,13 @@ function ParticipationLeaderboard({ students, loading }) {
               </div>
               <div className="leader-metric">
                 <small>참여</small>
-                <b>{student.participationCount}회</b>
+                <b>{student.participationCount || 0}회</b>
               </div>
               <div className="leader-metric">
                 <small>학습시간</small>
                 <b>
-                  {Math.floor(student.totalMinutes / 60)}시간{" "}
-                  {student.totalMinutes % 60}분
+                  {Math.floor((student.totalMinutes || 0) / 60)}시간{" "}
+                  {(student.totalMinutes || 0) % 60}분
                 </b>
               </div>
               <div className="leader-metric streak-metric">
@@ -2598,6 +2661,24 @@ function OperationsSettings({ notify }) {
   );
 }
 
+function StudentHomeLeaderboard() {
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(
+    () =>
+      subscribeToCollection(
+        "publicRankings",
+        (items) => {
+          setStudents(items.sort((a, b) => (b.points || 0) - (a.points || 0)));
+          setLoading(false);
+        },
+        () => setLoading(false),
+      ),
+    [],
+  );
+  return <ParticipationLeaderboard students={students} loading={loading} />;
+}
+
 function EmptyStudentHome({ setPage, studentName }) {
   return (
     <div className="page">
@@ -2657,6 +2738,7 @@ function EmptyStudentHome({ setPage, studentName }) {
           <CalendarDays /> 자율학습 신청하기
         </button>
       </section>
+      <StudentHomeLeaderboard />
     </div>
   );
 }
@@ -2877,6 +2959,7 @@ function App() {
           setPage(data.role === "teacher" ? "admin" : "home");
           if (data.role !== "teacher") {
             localStorage.removeItem("studyon_students");
+            publishRankingProfile(current.uid, data).catch(() => {});
           }
         } catch {
           setProfile({
